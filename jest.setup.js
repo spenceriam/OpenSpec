@@ -159,3 +159,12 @@ global.TextDecoder = class {
     return Buffer.from(buffer).toString('utf-8')
   }
 }
+
+// Mock scrollIntoView for cmdk components
+Element.prototype.scrollIntoView = jest.fn()
+
+// Mock window.open for file preview functionality
+Object.defineProperty(window, 'open', {
+  writable: true,
+  value: jest.fn(() => ({ document: { write: jest.fn() } }))
+})

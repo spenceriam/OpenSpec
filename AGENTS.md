@@ -194,22 +194,73 @@ Follow conventional commit format:
 
 ## Project Status & Updates
 
-### Current Status: Initial Project Setup
+### Current Status: Core Components Implemented with Fixed Testing
 - ✅ Repository initialized with README.md and project documentation
 - ✅ AGENTS.md created following agents.md format
-- ⏳ Next.js 14 project setup pending
-- ⏳ shadcn/ui component library integration pending
-- ⏳ OpenRouter API client implementation pending
+- ✅ Next.js 14 project setup complete
+- ✅ shadcn/ui component library integration complete
+- ✅ OpenRouter API client implementation complete
+- ✅ Core workflow components created
+- ✅ **Fixed looping test issues** - Main problem was Jest configuration typo (`moduleNameMapping` → `moduleNameMapper`)
+- ✅ ModelSelector tests fully working (9/9 passing)
+- ⏳ PromptInput tests need refinement (accessibility and text matching issues)
 
 ### Recent Changes
 - **2025-09-13**: Created AGENTS.md as living documentation for coding agents
 - **2025-09-13**: Added comprehensive project structure and guidelines
+- **2025-09-13**: **FIXED CRITICAL LOOPING TEST BUG** - The test sessions were looping due to:
+  1. Jest config typo: `moduleNameMapping` instead of `moduleNameMapper` causing module resolution failures
+  2. Missing `model-utils.ts` file that ModelSelector component imports
+  3. Missing Jest mocks for `scrollIntoView` and `window.open` APIs
+  4. Incorrect test mocking structure (tests were mocking wrong modules)
 
 ### Next Steps
-- Initialize Next.js 14 project with TypeScript
-- Set up Tailwind CSS and shadcn/ui
-- Implement OpenRouter API integration
-- Create core workflow components
+- Refine PromptInput component tests to match actual component behavior
+- Complete integration tests for full workflow
+- Set up end-to-end testing with actual OpenRouter API
+- Add error boundary components
+
+### Troubleshooting Notes
+
+#### Jest Configuration Issues
+- **Problem**: Tests were looping infinitely during execution
+- **Root Cause**: Typo in `jest.config.js` - used `moduleNameMapping` instead of `moduleNameMapper`
+- **Solution**: Corrected the configuration property name
+- **Lesson**: Always validate Jest configuration property names carefully
+
+#### Missing Module Dependencies
+- **Problem**: `ModelSelector` component imports from `@/lib/openrouter/model-utils` which didn't exist
+- **Solution**: Created comprehensive `model-utils.ts` with filtering, searching, and categorization functions
+- **Functions included**: `filterModels`, `searchModels`, `categorizeModels`, `formatPrice`, etc.
+
+#### Browser API Mocks
+- **Problem**: Tests failed on missing browser APIs (`scrollIntoView`, `window.open`)
+- **Solution**: Added proper mocks in `jest.setup.js`
+- **APIs mocked**: `Element.prototype.scrollIntoView`, `window.open`
+
+#### Test Structure Mismatches
+- **Problem**: Tests were mocking `@/lib/openrouter/models` but component uses `@/lib/openrouter/client`
+- **Solution**: Updated test mocks to match actual component dependencies
+- **Result**: ModelSelector tests now pass completely (9/9)
+
+### Component Testing Status
+
+#### ✅ ModelSelector Component
+- All tests passing (9/9)
+- Properly mocked dependencies
+- Covers API key validation, model loading, selection, filtering, and error handling
+
+#### ⚠️ PromptInput Component
+- Some tests failing due to text content mismatches
+- Component shows "Click to upload or drag and drop" but tests expect "drag drop files here"
+- Accessibility improvements needed (aria-describedby attributes)
+- File handling tests need refinement
+
+#### 📋 Other Components
+- ApiKeyInput: Tests passing
+- Storage utilities: Tests passing
+- useSpecWorkflow hook: Tests passing
+- OpenRouter integration: Tests passing
 
 ## Maintaining This Document
 

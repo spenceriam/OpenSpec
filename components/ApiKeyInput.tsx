@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Eye, EyeOff, Key, CheckCircle, AlertCircle, Loader2, ExternalLink } from 'lucide-react'
-import { useApiKeyStorage } from '@/hooks/useApiKeyStorage'
+import { useAPIKeyStorage } from '../hooks/useSessionStorage'
 import { OpenRouterClient } from '@/lib/openrouter/client'
 
 interface ApiKeyInputProps {
@@ -23,7 +23,7 @@ export function ApiKeyInput({
   autoTest = false,
   className = '' 
 }: ApiKeyInputProps) {
-  const { apiKey, setApiKey, clearApiKey, isValidKey, keySource } = useApiKeyStorage()
+  const { value: apiKey, setAPIKey, clearAPIKey, isValid: isValidKey } = useAPIKeyStorage()
   const [inputValue, setInputValue] = useState(apiKey || '')
   const [showKey, setShowKey] = useState(false)
   const [isTestingKey, setIsTestingKey] = useState(false)
@@ -90,7 +90,7 @@ export function ApiKeyInput({
     
     // Clear stored key if input is cleared
     if (!value.trim() && apiKey) {
-      clearApiKey()
+      clearAPIKey()
       onApiKeyValidated?.(false)
     }
   }
@@ -121,12 +121,12 @@ export function ApiKeyInput({
     }
 
     if (isValid || !autoTest) {
-      setApiKey(trimmedValue)
+      setAPIKey(trimmedValue)
       if (!autoTest) {
         onApiKeyValidated?.(true, trimmedValue)
       }
     }
-  }, [inputValue, autoTest, testApiKey, setApiKey, onApiKeyValidated])
+  }, [inputValue, autoTest, testApiKey, setAPIKey, onApiKeyValidated])
 
   // Handle manual test
   const handleTestKey = useCallback(() => {
@@ -146,7 +146,7 @@ export function ApiKeyInput({
   // Clear API key
   const handleClearKey = () => {
     setInputValue('')
-    clearApiKey()
+    clearAPIKey()
     setTestResult(null)
     setHasTestedCurrentKey(false)
     onApiKeyValidated?.(false)

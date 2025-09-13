@@ -65,6 +65,9 @@ export class OpenRouterClient {
 
   async listModels(): Promise<OpenRouterModel[]> {
     const response = await this.makeRequest('/models')
+    if (!response || !response.data) {
+      throw new Error('Invalid response: missing data')
+    }
     return response.data
   }
 
@@ -104,18 +107,18 @@ export class OpenRouterClient {
           headers,
         })
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}))
+        if (!response || !response.ok) {
+          const errorData = response ? await response.json().catch(() => ({})) : {}
           
           // Retry on server errors
-          if (response.status >= 500 && attempt < maxRetries) {
+          if (response && response.status >= 500 && attempt < maxRetries) {
             attempt++
             await this.delay(Math.pow(2, attempt) * 1000)
             continue
           }
 
           // Retry on rate limiting
-          if (response.status === 429 && attempt < maxRetries) {
+          if (response && response.status === 429 && attempt < maxRetries) {
             const retryAfter = response.headers.get('retry-after')
             const delay = retryAfter ? parseInt(retryAfter) * 1000 : Math.pow(2, attempt) * 1000
             attempt++
@@ -124,24 +127,34 @@ export class OpenRouterClient {
           }
 
           throw new OpenRouterError(
-            errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`,
-            response.status,
+            errorData.error?.message || (response ? `HTTP ${response.status}: ${response.statusText}` : 'Network error'),
+            response?.status || 0,
             errorData.error?.code
           )
         }
 
+        // Check if this is a streaming response
+        const contentType = response.headers?.get?.('content-type')
+        if (contentType && contentType.includes('text/event-stream')) {
+          // For streaming responses, return the response object itself
+          // The consumer will handle reading the stream
+          return response
+        }
+        
         return await response.json()
       } catch (error) {
         if (error instanceof OpenRouterError) {
           throw error
         }
         
+        // If this is a network error or timeout, and we have retries left
         if (attempt < maxRetries) {
           attempt++
           await this.delay(Math.pow(2, attempt) * 1000)
           continue
         }
         
+        // Final attempt failed - throw the original error
         throw error
       }
     }

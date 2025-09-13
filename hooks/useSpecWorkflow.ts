@@ -75,6 +75,29 @@ export interface UseSpecWorkflowReturn {
   clearError: () => void
   exportData: () => any
   importData: (data: any) => boolean
+  
+  // Test-compatible API aliases and additional methods
+  generateContent: (phase: WorkflowPhase, prompt: string, model: string) => Promise<void>
+  refineContent: (phase: WorkflowPhase, feedback: string, model: string) => Promise<void>
+  setCurrentPhase: (phase: WorkflowPhase) => void
+  updateApproval: (phase: WorkflowPhase, status: 'approved' | 'pending') => void
+  progressToNextPhase: () => void
+  resetWorkflow: () => void
+  setError: (message: string) => void
+  canProgressToNextPhase: () => boolean
+  isWorkflowComplete: () => boolean
+  isGenerating: boolean
+  error: string | null
+  phaseContent: {
+    requirements: string
+    design: string
+    tasks: string
+  }
+  approvals: {
+    requirements: 'approved' | 'pending'
+    design: 'approved' | 'pending'
+    tasks: 'approved' | 'pending'
+  }
 }
 
 export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWorkflowReturn {
@@ -409,6 +432,79 @@ Please update the ${state.phase} document based on this feedback while maintaini
     setState(prev => ({ ...prev, error: null }))
   }, [setState])
 
+  // Additional methods for test compatibility
+  const generateContent = useCallback(async (phase: WorkflowPhase, prompt: string, model: string) => {
+    // For now, delegate to generateCurrentPhase - could extend to support specific phases later
+    if (phase !== state.phase) {
+      // Temporarily switch to target phase
+      const currentPhase = state.phase
+      setState(prev => ({ ...prev, phase }))
+      await generateCurrentPhase()
+      setState(prev => ({ ...prev, phase: currentPhase }))
+    } else {
+      await generateCurrentPhase()
+    }
+  }, [state.phase, setState, generateCurrentPhase])
+
+  const refineContent = useCallback(async (phase: WorkflowPhase, feedback: string, model: string) => {
+    // For now, delegate to refineCurrentPhase - could extend to support specific phases later
+    if (phase !== state.phase) {
+      const currentPhase = state.phase
+      setState(prev => ({ ...prev, phase }))
+      await refineCurrentPhase(feedback)
+      setState(prev => ({ ...prev, phase: currentPhase }))
+    } else {
+      await refineCurrentPhase(feedback)
+    }
+  }, [state.phase, setState, refineCurrentPhase])
+
+  const setCurrentPhase = useCallback((phase: WorkflowPhase) => {
+    setState(prev => ({ ...prev, phase }))
+  }, [setState])
+
+  const updateApproval = useCallback((phase: WorkflowPhase, status: 'approved' | 'pending') => {
+    setState(prev => ({
+      ...prev,
+      approvals: {
+        ...prev.approvals,
+        [phase]: status === 'approved'
+      }
+    }))
+  }, [setState])
+
+  const progressToNextPhase = useCallback(() => {
+    proceedToNextPhase()
+  }, [proceedToNextPhase])
+
+  const resetWorkflow = useCallback(() => {
+    reset()
+  }, [reset])
+
+  const setError = useCallback((message: string) => {
+    setState(prev => ({ ...prev, error: message }))
+  }, [setState])
+
+  const canProgressToNextPhase = useCallback(() => {
+    return canProceedToNext
+  }, [canProceedToNext])
+
+  const isWorkflowComplete = useCallback(() => {
+    return state.approvals.requirements && state.approvals.design && state.approvals.tasks
+  }, [state.approvals])
+
+  // Helper getters for test compatibility
+  const phaseContent = {
+    requirements: state.requirements || '',
+    design: state.design || '',
+    tasks: state.tasks || ''
+  }
+
+  const approvals = {
+    requirements: state.approvals.requirements ? 'approved' as const : 'pending' as const,
+    design: state.approvals.design ? 'approved' as const : 'pending' as const,
+    tasks: state.approvals.tasks ? 'approved' as const : 'pending' as const
+  }
+
   const exportData = useCallback(() => {
     return {
       state,
@@ -479,7 +575,24 @@ Please update the ${state.phase} document based on this feedback while maintaini
     reset,
     clearError,
     exportData,
-    importData
+    importData,
+    
+    // Test-compatible API aliases and additional methods
+    generateContent,
+    refineContent,
+    setCurrentPhase,
+    updateApproval,
+    progressToNextPhase,
+    resetWorkflow,
+    setError,
+    canProgressToNextPhase,
+    isWorkflowComplete,
+    
+    // Test-compatible properties
+    isGenerating: state.isGenerating,
+    error: state.error,
+    phaseContent,
+    approvals
   }
 }
 

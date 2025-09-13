@@ -239,13 +239,32 @@ export function useLocalStorage<T>(
 
   // Initialize value from localStorage on mount
   useEffect(() => {
-    const storedValue = getStoredValue()
+    if (isInitializedRef.current) {
+      return // Already initialized
+    }
+    
+    // Get value directly to avoid dependency chain
+    let storedValue = defaultValue
+    if (typeof window !== 'undefined') {
+      try {
+        const item = localStorage.getItem(key)
+        if (item !== null) {
+          const parsed = deserialize(item)
+          if (!validateData || validateData(parsed)) {
+            storedValue = parsed
+          }
+        }
+      } catch (error) {
+        console.warn(`Failed to load from localStorage key "${key}":`, error)
+      }
+    }
+    
     setStateValue(storedValue)
     prevValueRef.current = storedValue
     setIsLoading(false)
     isInitializedRef.current = true
     updateStorageInfo()
-  }, [getStoredValue, updateStorageInfo])
+  }, [key, defaultValue, deserialize, validateData]) // Static dependencies only
 
   // Listen for storage changes from other tabs
   useEffect(() => {

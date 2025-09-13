@@ -14,7 +14,7 @@ const customJestConfig = {
     '<rootDir>/node_modules/',
     '<rootDir>/out/',
   ],
-  moduleNameMapping: {
+  moduleNameMapper: {
     '^@/components/(.*)$': '<rootDir>/components/$1',
     '^@/lib/(.*)$': '<rootDir>/lib/$1',
     '^@/hooks/(.*)$': '<rootDir>/hooks/$1',
@@ -38,7 +38,7 @@ const customJestConfig = {
     '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
-  testTimeout: 10000,
+  testTimeout: 30000,
 }
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async

@@ -293,7 +293,7 @@ export function PromptInput({
         {/* Text input */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="text-sm font-medium">Feature Description</label>
+            <label htmlFor="feature-description" className="text-sm font-medium">Feature Description</label>
             <div className={`text-xs ${isPromptValid ? 'text-muted-foreground' : 'text-destructive'}`}>
               {prompt.length}/{maxLength} characters 
               {prompt.length < minLength && ` (minimum ${minLength})`}
@@ -301,12 +301,23 @@ export function PromptInput({
           </div>
           
           <Textarea
+            id="feature-description"
             value={prompt}
             onChange={(e) => onPromptChange(e.target.value)}
             placeholder={placeholder}
             className="min-h-32 resize-y"
             maxLength={maxLength}
           />
+          
+          {/* Character limit warnings */}
+          {prompt.length > maxLength * 0.9 && prompt.length < maxLength && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Approaching character limit: {prompt.length}/{maxLength} characters
+              </AlertDescription>
+            </Alert>
+          )}
           
           {!isPromptValid && prompt.length > 0 && (
             <Alert variant="destructive">
@@ -324,7 +335,7 @@ export function PromptInput({
         {/* File upload area */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <label className="text-sm font-medium">Context Files (Optional)</label>
+            <label htmlFor="context-files" className="text-sm font-medium">Context Files (Optional)</label>
             <div className="text-xs text-muted-foreground">
               {contextFiles.length}/{maxFiles} files • {remainingFiles} remaining
             </div>
@@ -346,6 +357,7 @@ export function PromptInput({
             onClick={() => fileInputRef.current?.click()}
           >
             <input
+              id="context-files"
               ref={fileInputRef}
               type="file"
               multiple
@@ -353,6 +365,7 @@ export function PromptInput({
               accept={acceptedTypes.join(',')}
               onChange={handleFileInputChange}
               disabled={remainingFiles === 0}
+              aria-label="Upload files"
             />
             
             <Upload className={`h-8 w-8 mx-auto mb-2 ${isDragOver ? 'text-primary' : 'text-muted-foreground'}`} />
@@ -403,6 +416,7 @@ export function PromptInput({
                         size="sm"
                         onClick={() => previewFile(file)}
                         className="h-8 w-8 p-0"
+                        aria-label={`Preview ${file.name}`}
                       >
                         <Eye className="h-3 w-3" />
                       </Button>
@@ -411,6 +425,7 @@ export function PromptInput({
                         size="sm"
                         onClick={() => removeFile(file.id)}
                         className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                        aria-label={`Remove ${file.name}`}
                       >
                         <X className="h-3 w-3" />
                       </Button>

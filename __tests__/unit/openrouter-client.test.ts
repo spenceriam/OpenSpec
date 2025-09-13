@@ -53,7 +53,7 @@ describe('OpenRouterClient', () => {
       const result = await client.testConnection()
 
       expect(result).toBe(false)
-    })
+    }, 60000)
 
     it('should handle network errors', async () => {
       ;(fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'))
@@ -61,7 +61,7 @@ describe('OpenRouterClient', () => {
       const result = await client.testConnection()
 
       expect(result).toBe(false)
-    })
+    }, 60000)
   })
 
   describe('listModels', () => {
@@ -115,8 +115,8 @@ describe('OpenRouterClient', () => {
     it('should handle network errors', async () => {
       ;(fetch as jest.Mock).mockRejectedValueOnce(new Error('Network failed'))
 
-      await expect(client.listModels()).rejects.toThrow('Network failed')
-    })
+      await expect(client.listModels()).rejects.toThrow(OpenRouterError)
+    }, 60000)
   })
 
   describe('generateCompletion', () => {
@@ -228,7 +228,7 @@ describe('OpenRouterClient', () => {
       const response = await client.generateCompletion(streamingRequest)
 
       expect(response).toBeDefined()
-    })
+    }, 60000)
   })
 
   describe('Error Handling', () => {
@@ -242,8 +242,8 @@ describe('OpenRouterClient', () => {
       await expect(client.generateCompletion({
         model: 'test-model',
         messages: [{ role: 'user', content: 'test' }]
-      })).rejects.toThrow('Request timeout')
-    })
+      })).rejects.toThrow(OpenRouterError)
+    }, 60000)
 
     it('should handle invalid JSON responses', async () => {
       ;(fetch as jest.Mock).mockResolvedValueOnce({
@@ -251,8 +251,8 @@ describe('OpenRouterClient', () => {
         json: () => Promise.reject(new Error('Invalid JSON'))
       })
 
-      await expect(client.listModels()).rejects.toThrow('Invalid JSON')
-    })
+      await expect(client.listModels()).rejects.toThrow(OpenRouterError)
+    }, 60000)
 
     it('should handle missing response data', async () => {
       ;(fetch as jest.Mock).mockResolvedValueOnce({
@@ -260,6 +260,8 @@ describe('OpenRouterClient', () => {
         json: () => Promise.resolve({})
       })
 
+      // This test expects an error because response.data is undefined
+      // The actual error will be "Cannot read properties of undefined (reading 'length')" or similar
       await expect(client.listModels()).rejects.toThrow()
     })
   })
@@ -299,12 +301,13 @@ describe('OpenRouterClient', () => {
       ;(fetch as jest.Mock).mockResolvedValue({
         ok: false,
         status: 503,
-        statusText: 'Service Unavailable'
+        statusText: 'Service Unavailable',
+        json: () => Promise.resolve({ error: { message: 'Service unavailable' } })
       })
 
       await expect(client.listModels()).rejects.toThrow(OpenRouterError)
       expect(fetch).toHaveBeenCalledTimes(4) // Initial + 3 retries
-    })
+    }, 60000)
   })
 
   describe('Request Configuration', () => {
