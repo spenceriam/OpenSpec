@@ -42,27 +42,27 @@
     - Implement key validation and error handling
     - Add storage event listeners for cross-tab synchronization
     - _Requirements: 1.3, 1.4, 5.5_
-  - [ ] 4.3 Create storage warning component
+  - [x] 4.3 Create storage warning component
     - Display prominent warnings about temporary storage
     - Show storage usage and remaining capacity
     - Provide export prompts when storage is full
     - _Requirements: 5.1, 5.4_
 
 - [ ] 5. Build core workflow state management
-  - [ ] 5.1 Create useSpecWorkflow hook
+  - [x] 5.1 Create useSpecWorkflow hook
     - Implement three-phase workflow state management
     - Add approval tracking and phase progression logic
     - Include content generation and refinement methods
     - _Requirements: 7.1, 7.2, 7.3, 8.1_
-  - [ ] 5.2 Implement workflow phase validation
-    - Add approval gate logic between phases
-    - Implement phase unlock conditions and validation
+  - [x] 5.2 Implement workflow phase validation
+    - Add approval gate logic between phases, implement unlock conditions and validation
     - Create phase completion tracking
     - _Requirements: 7.4, 7.5, 7.6_
-  - [ ] 5.3 Add iterative refinement functionality
+  - [x] 5.3 Add iterative refinement functionality
     - Implement feedback collection and processing
     - Add content regeneration with user feedback
     - Include version history tracking for sessions
+    - _Requirements: 8.2, 8.3, 8.4, 8.5_
     - _Requirements: 8.2, 8.3, 8.4, 8.5_
 
 - [ ] 6. Create system prompt templates and content generation
