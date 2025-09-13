@@ -110,7 +110,7 @@
     - Add model capability badges (vision, context length, pricing)
     - Implement real-time search and selection
     - _Requirements: 2.1, 2.2, 2.3_
-  - [ ] 8.3 Build prompt input and file upload components
+  - [x] 8.3 Build prompt input and file upload components
     - Create text area for feature description input
     - Implement drag-and-drop file upload with preview
     - Add support for code, document, and image files
