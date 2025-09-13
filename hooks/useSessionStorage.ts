@@ -1,0 +1,339 @@
+'use client'
+
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { SessionData } from '@/types'
+
+export interface UseSessionStorageOptions {
+  autoSave?: boolean
+  autoSaveDelay?: number
+  onError?: (error: Error, operation: 'get' | 'set' | 'remove') => void
+  onStorageChange?: (newValue: string | null, oldValue: string | null) => void
+  validateKey?: (key: string) => boolean
+}
+
+export interface UseSessionStorageReturn {
+  value: string | null
+  setValue: (value: string | null) => void
+  remove: () => void
+  isValid: boolean
+  error: Error | null
+  clearError: () => void
+  testConnection: () => Promise<boolean>
+}
+
+// Simple API key validation patterns
+const API_KEY_PATTERNS = {
+  openrouter: /^sk-or-[\w-]+$/,
+  openai: /^sk-[\w-]+$/,
+  anthropic: /^sk-ant-[\w-]+$/,
+  generic: /^[\w-]+$/ // Fallback for other providers
+}
+
+function validateAPIKey(key: string): boolean {
+  if (!key || key.length < 10) {
+    return false
+  }
+
+  // Check against known patterns
+  for (const pattern of Object.values(API_KEY_PATTERNS)) {
+    if (pattern.test(key)) {
+      return true
+    }
+  }
+
+  return false
+}
+
+export function useSessionStorage(
+  key: string,
+  options: UseSessionStorageOptions = {}
+): UseSessionStorageReturn {
+  const {
+    autoSave = false, // Session storage doesn't need auto-save as it's already session-based
+    autoSaveDelay = 1000,
+    onError,
+    onStorageChange,
+    validateKey = validateAPIKey
+  } = options
+
+  const [value, setStateValue] = useState<string | null>(null)
+  const [error, setError] = useState<Error | null>(null)
+  const [isValid, setIsValid] = useState<boolean>(false)
+  
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const prevValueRef = useRef<string | null>(null)
+
+  // Get value from sessionStorage
+  const getStoredValue = useCallback((): string | null => {
+    if (typeof window === 'undefined') {
+      return null
+    }
+
+    try {
+      const item = sessionStorage.getItem(key)
+      return item
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error))
+      onError?.(err, 'get')
+      setError(err)
+      return null
+    }
+  }, [key, onError])
+
+  // Set value to sessionStorage
+  const setStoredValue = useCallback(
+    (valueToStore: string | null) => {
+      if (typeof window === 'undefined') {
+        return
+      }
+
+      try {
+        if (valueToStore === null) {
+          sessionStorage.removeItem(key)
+        } else {
+          sessionStorage.setItem(key, valueToStore)
+        }
+        
+        // Notify of changes
+        const oldValue = prevValueRef.current
+        if (onStorageChange && oldValue !== valueToStore) {
+          onStorageChange(valueToStore, oldValue)
+        }
+        
+        prevValueRef.current = valueToStore
+        
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error))
+        onError?.(err, 'set')
+        setError(err)
+      }
+    },
+    [key, onError, onStorageChange]
+  )
+
+  // Set value with optional auto-save
+  const setValue = useCallback(
+    (newValue: string | null) => {
+      setStateValue(newValue)
+      
+      // Validate the new value
+      if (newValue && validateKey) {
+        const valid = validateKey(newValue)
+        setIsValid(valid)
+        
+        if (!valid) {
+          setError(new Error('Invalid API key format'))
+        } else {
+          setError(null)
+        }
+      } else {
+        setIsValid(false)
+        setError(null)
+      }
+
+      if (autoSave) {
+        // Clear existing timeout
+        if (autoSaveTimeoutRef.current) {
+          clearTimeout(autoSaveTimeoutRef.current)
+        }
+
+        // Set new timeout for auto-save
+        autoSaveTimeoutRef.current = setTimeout(() => {
+          setStoredValue(newValue)
+        }, autoSaveDelay)
+      } else {
+        // Save immediately
+        setStoredValue(newValue)
+      }
+    },
+    [autoSave, autoSaveDelay, validateKey, setStoredValue]
+  )
+
+  // Remove value from sessionStorage
+  const remove = useCallback(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    try {
+      sessionStorage.removeItem(key)
+      setStateValue(null)
+      setIsValid(false)
+      setError(null)
+      prevValueRef.current = null
+      
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current)
+        autoSaveTimeoutRef.current = null
+      }
+      
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error))
+      onError?.(err, 'remove')
+      setError(err)
+    }
+  }, [key, onError])
+
+  // Test API key connection
+  const testConnection = useCallback(async (): Promise<boolean> => {
+    if (!value || !isValid) {
+      return false
+    }
+
+    try {
+      // Test connection using the models endpoint
+      const response = await fetch('/api/models', {
+        method: 'GET',
+        headers: {
+          'X-API-Key': value
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        return Array.isArray(data.models) && data.models.length > 0
+      }
+      
+      return false
+    } catch (error) {
+      console.warn('API key test failed:', error)
+      return false
+    }
+  }, [value, isValid])
+
+  // Clear error
+  const clearError = useCallback(() => {
+    setError(null)
+  }, [])
+
+  // Initialize value from sessionStorage on mount
+  useEffect(() => {
+    const storedValue = getStoredValue()
+    if (storedValue) {
+      setStateValue(storedValue)
+      prevValueRef.current = storedValue
+      
+      if (validateKey) {
+        const valid = validateKey(storedValue)
+        setIsValid(valid)
+        
+        if (!valid) {
+          setError(new Error('Stored API key has invalid format'))
+        }
+      }
+    }
+  }, [getStoredValue, validateKey])
+
+  // Listen for storage changes from other tabs
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === key) {
+        const newValue = e.newValue
+        setStateValue(newValue)
+        prevValueRef.current = newValue
+        
+        if (newValue && validateKey) {
+          const valid = validateKey(newValue)
+          setIsValid(valid)
+          
+          if (!valid) {
+            setError(new Error('Invalid API key format from storage sync'))
+          } else {
+            setError(null)
+          }
+        } else {
+          setIsValid(false)
+          setError(null)
+        }
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [key, validateKey])
+
+  // Cleanup auto-save timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  // Clear session data when tab is closed (beforeunload)
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const handleBeforeUnload = () => {
+      // Session storage is automatically cleared when the session ends,
+      // but we can perform cleanup here if needed
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current)
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [])
+
+  return {
+    value,
+    setValue,
+    remove,
+    isValid,
+    error,
+    clearError,
+    testConnection
+  }
+}
+
+// Specialized hook for API key management
+export function useAPIKeyStorage(): UseSessionStorageReturn & {
+  setAPIKey: (key: string) => void
+  clearAPIKey: () => void
+  hasValidKey: boolean
+} {
+  const sessionStorage = useSessionStorage('openspec-api-key', {
+    validateKey: validateAPIKey,
+    onError: (error, operation) => {
+      console.warn(`API key ${operation} error:`, error)
+    },
+    onStorageChange: (newValue, oldValue) => {
+      if (newValue && !oldValue) {
+        console.info('API key added')
+      } else if (!newValue && oldValue) {
+        console.info('API key removed')
+      } else if (newValue && oldValue && newValue !== oldValue) {
+        console.info('API key updated')
+      }
+    }
+  })
+
+  const setAPIKey = useCallback((key: string) => {
+    if (!key.trim()) {
+      sessionStorage.setValue(null)
+      return
+    }
+    sessionStorage.setValue(key.trim())
+  }, [sessionStorage])
+
+  const clearAPIKey = useCallback(() => {
+    sessionStorage.remove()
+  }, [sessionStorage])
+
+  const hasValidKey = Boolean(sessionStorage.value && sessionStorage.isValid)
+
+  return {
+    ...sessionStorage,
+    setAPIKey,
+    clearAPIKey,
+    hasValidKey
+  }
+}
