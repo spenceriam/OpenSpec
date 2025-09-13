@@ -88,7 +88,7 @@
     - Implement diagram extraction from markdown content
     - Add SVG rendering and caching functionality
     - _Requirements: 4.1, 4.6_
-  - [ ] 7.2 Add diagram generation utilities
+  - [x] 7.2 Add diagram generation utilities
     - Create diagram detection and parsing functions
     - Implement persona-based diagram generation logic
     - Add diagram type classification (architecture, sequence, ERD, user flow)
