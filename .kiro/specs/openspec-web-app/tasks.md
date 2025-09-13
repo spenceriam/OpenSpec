@@ -149,7 +149,7 @@
     - Add combined export with proper formatting and structure
     - Implement separate file export with zip-like functionality
     - _Requirements: 6.2, 6.3, 6.4, 6.5_
-  - [ ] 10.3 Add diagram export capabilities
+  - [x] 10.3 Add diagram export capabilities
     - Implement individual diagram SVG export
     - Create batch diagram export functionality
     - Add raw Mermaid code export options
