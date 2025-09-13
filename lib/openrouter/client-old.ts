@@ -149,5 +149,68 @@ export class OpenRouterClient {
 
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms))
+      retryable: this.isRetryableStatus(response.status)
+    }
+
+    return error
+  }
+
+  /**
+   * Wrap generic errors as APIError
+   */
+  private wrapError(error: Error): APIError {
+    return {
+      code: 'CLIENT_ERROR',
+      message: error.message,
+      details: { originalError: error.name },
+      retryable: false
+    }
+  }
+
+  /**
+   * Determine if HTTP status is retryable
+   */
+  private isRetryableStatus(status: number): boolean {
+    return status >= 500 || status === 429 || status === 408
+  }
+
+  /**
+   * Get model capabilities
+   */
+  hasVisionSupport(model: OpenRouterModel): boolean {
+    return model.architecture?.modality?.includes('multimodal') || 
+           model.architecture?.modality?.includes('vision') ||
+           model.name.toLowerCase().includes('vision') ||
+           model.id.toLowerCase().includes('vision')
+  }
+
+  /**
+   * Format pricing for display
+   */
+  formatPricing(model: OpenRouterModel): string {
+    try {
+      const promptPrice = parseFloat(model.pricing.prompt) * 1000000 // Convert to per-1M tokens
+      const completionPrice = parseFloat(model.pricing.completion) * 1000000
+      
+      if (promptPrice < 1) {
+        return `$${(promptPrice * 1000).toFixed(2)}/1K prompt, $${(completionPrice * 1000).toFixed(2)}/1K completion`
+      }
+      
+      return `$${promptPrice.toFixed(2)}/1M prompt, $${completionPrice.toFixed(2)}/1M completion`
+    } catch (error) {
+      return 'Pricing unavailable'
+    }
+  }
+
+  /**
+   * Format context length for display
+   */
+  formatContextLength(contextLength: number): string {
+    if (contextLength >= 1000000) {
+      return `${(contextLength / 1000000).toFixed(1)}M tokens`
+    } else if (contextLength >= 1000) {
+      return `${(contextLength / 1000).toFixed(0)}K tokens`
+    }
+    return `${contextLength} tokens`
   }
 }

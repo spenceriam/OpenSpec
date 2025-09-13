@@ -132,3 +132,30 @@ global.FileReader = class {
     }, 10)
   }
 }
+
+// Mock ReadableStream
+global.ReadableStream = class {
+  constructor(options) {
+    this.controller = {
+      enqueue: jest.fn(),
+      close: jest.fn()
+    }
+    if (options.start) {
+      options.start(this.controller)
+    }
+  }
+}
+
+// Mock TextEncoder
+global.TextEncoder = class {
+  encode(str) {
+    return new Uint8Array(Buffer.from(str, 'utf-8'))
+  }
+}
+
+// Mock TextDecoder
+global.TextDecoder = class {
+  decode(buffer) {
+    return Buffer.from(buffer).toString('utf-8')
+  }
+}
