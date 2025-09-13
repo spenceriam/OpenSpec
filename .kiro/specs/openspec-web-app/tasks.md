@@ -76,7 +76,7 @@
     - Include automatic Mermaid diagram generation instructions
     - Add architecture, sequence, and ERD diagram templates
     - _Requirements: 10.1, 10.2, 4.1, 4.2, 4.3_
-  - [ ] 6.3 Create task generation prompts
+  - [x] 6.3 Create task generation prompts
     - Build task formatting prompt in lib/prompts/tasks.ts
     - Include numbered checkbox format and requirement referencing
     - Add implementation-focused task creation guidelines
