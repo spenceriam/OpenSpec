@@ -192,4 +192,33 @@ Follow conventional commit format:
 - Handle storage quota limits gracefully
 - Provide export options before data loss
 
+## Project Status & Updates
+
+### Current Status: Initial Project Setup
+- ✅ Repository initialized with README.md and project documentation
+- ✅ AGENTS.md created following agents.md format
+- ⏳ Next.js 14 project setup pending
+- ⏳ shadcn/ui component library integration pending
+- ⏳ OpenRouter API client implementation pending
+
+### Recent Changes
+- **2025-09-13**: Created AGENTS.md as living documentation for coding agents
+- **2025-09-13**: Added comprehensive project structure and guidelines
+
+### Next Steps
+- Initialize Next.js 14 project with TypeScript
+- Set up Tailwind CSS and shadcn/ui
+- Implement OpenRouter API integration
+- Create core workflow components
+
+## Maintaining This Document
+
+This AGENTS.md file should be updated throughout the project lifecycle:
+
+1. **After major milestones** - Update project status and file structure
+2. **When adding new dependencies** - Update setup commands and tech stack
+3. **When establishing new patterns** - Add to code style and conventions
+4. **When encountering common issues** - Add to troubleshooting section
+5. **When changing deployment** - Update build and deployment instructions
+
 Remember: OpenSpec is a client-side only application. All AI model interactions happen through OpenRouter API, and all data is stored locally in the user's browser.
