@@ -15,7 +15,7 @@
   - _Requirements: 1.1, 2.1, 6.1_
 
 - [ ] 3. Build OpenRouter API client and integration
-  - [ ] 3.1 Create OpenRouter client class in lib/openrouter/client.ts
+  - [x] 3.1 Create OpenRouter client class in lib/openrouter/client.ts
     - Implement generateCompletion method with proper error handling
     - Add getAvailableModels method for model fetching
     - Include proper headers and authentication handling
