@@ -115,7 +115,7 @@
     - Implement drag-and-drop file upload with preview
     - Add support for code, document, and image files
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
-  - [ ] 8.4 Create workflow progress indicator
+  - [x] 8.4 Create workflow progress indicator
     - Build visual phase indicator showing current step
     - Add approval status display for each phase
     - Implement progress tracking and navigation
