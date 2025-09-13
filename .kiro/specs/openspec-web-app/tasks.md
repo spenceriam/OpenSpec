@@ -93,10 +93,10 @@
     - Implement persona-based diagram generation logic
     - Add diagram type classification (architecture, sequence, ERD, user flow)
     - _Requirements: 4.2, 4.3, 4.4, 4.5, 4.6_
-  - [ ] 7.3 Build diagram export functionality
+  - [x] 7.3 Build diagram export functionality
     - Implement SVG export for individual diagrams
-    - Add raw Mermaid code export options
     - Create batch diagram export functionality
+    - Add raw Mermaid code export options
     - _Requirements: 6.4, 6.6_
 
 - [ ] 8. Build user interface components
