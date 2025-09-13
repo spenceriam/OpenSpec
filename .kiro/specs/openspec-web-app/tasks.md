@@ -25,7 +25,7 @@
     - Implement GET /api/models route for model listing
     - Add rate limiting and error handling middleware
     - _Requirements: 1.5, 2.4, 12.4_
-  - [ ] 3.3 Add OpenRouter model management utilities
+  - [x] 3.3 Add OpenRouter model management utilities
     - Create model filtering and search functionality
     - Implement model capability detection (vision support)
     - Add pricing and context length display utilities
