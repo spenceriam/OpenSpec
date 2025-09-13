@@ -132,7 +132,7 @@
     - Add content comparison view (before/after changes)
     - Implement refinement request processing
     - _Requirements: 8.1, 8.2, 8.3_
-  - [ ] 9.3 Add approval and control buttons
+  - [x] 9.3 Add approval and control buttons
     - Create approve, reject, and refine action buttons
     - Implement phase progression controls
     - Add generation status and loading indicators
