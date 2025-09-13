@@ -20,7 +20,7 @@
     - Add getAvailableModels method for model fetching
     - Include proper headers and authentication handling
     - _Requirements: 1.2, 2.1, 2.4_
-  - [ ] 3.2 Create Next.js API routes for OpenRouter proxy
+  - [x] 3.2 Create Next.js API routes for OpenRouter proxy
     - Implement POST /api/generate route for content generation
     - Implement GET /api/models route for model listing
     - Add rate limiting and error handling middleware
