@@ -71,7 +71,7 @@
     - Include user story and acceptance criteria formatting
     - Add hierarchical numbering and structure guidelines
     - _Requirements: 9.1, 9.2, 9.3_
-  - [ ] 6.2 Implement design generation prompts with diagram instructions
+  - [x] 6.2 Implement design generation prompts with diagram instructions
     - Create comprehensive design prompt in lib/prompts/design.ts
     - Include automatic Mermaid diagram generation instructions
     - Add architecture, sequence, and ERD diagram templates
