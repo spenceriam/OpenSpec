@@ -2,26 +2,75 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import Header from '@/components/Header'
+import Footer from '@/components/Footer'
+import { Toaster } from '@/components/ui/toaster'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'OpenSpec - Open Source Specification Generator',
-  description: 'Generate comprehensive technical specifications using AI models from OpenRouter. Create requirements, design documents, and implementation tasks with automatic diagram generation.',
+  title: 'OpenSpec - AI-Powered Specification Generation',
+  description: 'Generate comprehensive technical specifications using OpenRouter\'s AI models. Create requirements, design documents, and implementation tasks with automatic diagram generation.',
   keywords: [
-    'specification',
+    'specification generation',
     'technical documentation',
-    'AI',
+    'AI-powered development',
     'OpenRouter',
-    'requirements',
-    'design',
-    'implementation',
-    'mermaid diagrams',
-    'markdown'
+    'requirements engineering',
+    'design documents',
+    'Mermaid diagrams',
+    'spec-driven development'
   ],
   authors: [{ name: 'OpenSpec Team' }],
   creator: 'OpenSpec',
   publisher: 'OpenSpec',
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  metadataBase: new URL('https://openspec.dev'),
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    title: 'OpenSpec - AI-Powered Specification Generation',
+    description: 'Generate comprehensive technical specifications using OpenRouter\'s AI models with automatic diagram generation.',
+    url: 'https://openspec.dev',
+    siteName: 'OpenSpec',
+    locale: 'en_US',
+    type: 'website',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'OpenSpec - AI-Powered Specification Generation',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'OpenSpec - AI-Powered Specification Generation',
+    description: 'Generate comprehensive technical specifications using OpenRouter\'s AI models with automatic diagram generation.',
+    images: ['/og-image.png'],
+    creator: '@openspec',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  verification: {
+    google: 'your-google-verification-code',
+  },
+  category: 'technology',
 }
 
 export default function RootLayout({
@@ -30,33 +79,24 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} antialiased`}>
+    <html lang="en" suppressHydrationWarnings>
+      <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#000000" />
+      </head>
+      <body className={`${inter.className} antialiased min-h-screen bg-background`}>
         <ErrorBoundary>
-          <div className="min-h-screen bg-background text-foreground">
-            <div className="flex flex-col min-h-screen">
-              <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur">
-                <div className="container flex h-14 items-center">
-                  <a href="/" className="mr-6 flex items-center space-x-2">
-                    <div className="h-6 w-6 bg-primary rounded-md flex items-center justify-center">
-                      <span className="text-primary-foreground font-bold text-sm">O</span>
-                    </div>
-                    <span className="hidden font-bold sm:inline-block">OpenSpec</span>
-                  </a>
-                </div>
-              </header>
-              
-              <main className="flex-1">
-                {children}
-              </main>
-              
-              <footer className="border-t bg-background py-4">
-                <div className="container text-center text-sm text-muted-foreground">
-                  © {new Date().getFullYear()} OpenSpec. Built with Next.js and OpenRouter.
-                </div>
-              </footer>
-            </div>
+          <div className="relative flex min-h-screen flex-col">
+            <Header className="sticky top-0 z-50 w-full" />
+            <main className="flex-1">
+              {children}
+            </main>
+            <Footer />
           </div>
+          <Toaster />
         </ErrorBoundary>
       </body>
     </html>
