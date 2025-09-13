@@ -144,7 +144,7 @@
     - Add export options and metadata inclusion toggles
     - Implement export preview and confirmation
     - _Requirements: 6.1, 6.2, 6.3_
-  - [ ] 10.2 Implement file export utilities
+  - [x] 10.2 Implement file export utilities
     - Create markdown file generation and download functions
     - Add combined export with proper formatting and structure
     - Implement separate file export with zip-like functionality
