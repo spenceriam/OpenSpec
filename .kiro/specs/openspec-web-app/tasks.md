@@ -7,7 +7,7 @@
   - Configure ESLint, Prettier, and TypeScript strict mode
   - _Requirements: 12.1, 12.2_
 
-- [ ] 2. Implement core TypeScript interfaces and types
+- [x] 2. Implement core TypeScript interfaces and types
   - Create types/index.ts with SpecState, WorkflowPhase, OpenRouterModel interfaces
   - Define API request/response types for OpenRouter integration
   - Create ContextFile, ApprovalState, and ExportOptions types
