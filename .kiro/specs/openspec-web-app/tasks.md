@@ -105,7 +105,7 @@
     - Add key testing and error display functionality
     - Implement session storage integration
     - _Requirements: 1.1, 1.2, 1.5_
-  - [ ] 8.2 Implement model selector component
+  - [x] 8.2 Implement model selector component
     - Create searchable model dropdown with filtering
     - Add model capability badges (vision, context length, pricing)
     - Implement real-time search and selection
