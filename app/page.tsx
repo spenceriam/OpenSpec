@@ -275,18 +275,27 @@ export default function Home() {
             </div>
 
           {/* Step 2: Model Selection */}
-          {hasApiKey && (
-            <div className={currentStep === 2 ? 'block' : 'hidden'}>
-              <ComponentErrorBoundary name="ModelSelector">
-                <ModelSelector
-                  selectedModel={selectedModel}
-                  onModelSelect={handleModelSelected}
-                  onLoadingChange={(loading) => setModelLoadStatus(loading ? 'loading' : null)}
-                  onError={() => setModelLoadStatus('error')}
-                />
-              </ComponentErrorBoundary>
-            </div>
-          )}
+          {(() => {
+            console.log('ModelSelector render check:', {
+              hasApiKey,
+              currentStep,
+              shouldRenderModelSelector: hasApiKey && currentStep === 2,
+              apiKeyValue: apiKey ? 'present' : 'missing',
+              hasValidKeyFromHook: hasValidKey
+            })
+            return hasApiKey && (
+              <div className={currentStep === 2 ? 'block' : 'hidden'}>
+                <ComponentErrorBoundary name="ModelSelector">
+                  <ModelSelector
+                    selectedModel={selectedModel}
+                    onModelSelect={handleModelSelected}
+                    onLoadingChange={(loading) => setModelLoadStatus(loading ? 'loading' : null)}
+                    onError={() => setModelLoadStatus('error')}
+                  />
+                </ComponentErrorBoundary>
+              </div>
+            )
+          })()}
 
           {/* Step 3: Prompt Input */}
           {hasModel && (

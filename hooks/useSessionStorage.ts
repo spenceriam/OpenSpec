@@ -363,6 +363,15 @@ export function useAPIKeyStorage(): UseSessionStorageReturn & {
 
   const hasValidKey = Boolean(sessionStorage.value && sessionStorage.isValid && isAPITested)
 
+  // Debug logging
+  console.log('useAPIKeyStorage state:', {
+    hasValue: Boolean(sessionStorage.value),
+    isValid: sessionStorage.isValid,
+    isAPITested,
+    hasValidKey,
+    apiKeyLength: sessionStorage.value?.length || 0
+  })
+
   return {
     ...sessionStorage,
     setAPIKey,
