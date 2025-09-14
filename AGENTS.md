@@ -194,7 +194,7 @@ Follow conventional commit format:
 
 ## Project Status & Updates
 
-### Current Status: Core Functionality Complete with Simplified UI
+### Current Status: Core Functionality Complete with Enhanced UX Features
 - ✅ Repository initialized with README.md and project documentation
 - ✅ AGENTS.md created following agents.md format
 - ✅ Next.js 14 project setup complete
@@ -205,9 +205,16 @@ Follow conventional commit format:
 - ✅ **UI SIMPLIFIED**: Header and Footer components streamlined to essential branding only
 - ✅ ModelSelector tests fully working (9/9 passing)
 - ✅ **ApiKeyInput tests fully working (18/18 passing)** - All critical functionality verified
-- ⚠️ PromptInput tests partially working (14/22 passing) - Some complex features need implementation
+- ✅ **PromptInput UX Features Implemented**: Dynamic drag text, total file size display, paste handling, textarea auto-resize
+- ❌ **HEADER DUPLICATION ISSUE**: Two headers rendering - one from layout.tsx and one from page.tsx
 
 ### Recent Changes
+- **2025-01-14**: **IMPLEMENTED MISSING UX FEATURES IN PROMPTINPUT** - All missing features implemented:
+  - Dynamic drag state text: Changes to "Drop files to upload" when dragging
+  - Total file size display: Shows cumulative size next to file count
+  - Paste file handling: Users can paste files into textarea
+  - Textarea auto-resize: Height adjusts based on content (min 128px, max 300px)
+- **2025-01-14**: **IDENTIFIED HEADER DUPLICATION ISSUE** - Two headers rendering: layout Header + page header (lines 75-90)
 - **2025-01-13**: **FIXED CRITICAL API KEY SECURITY BUG** - Invalid API keys are now properly cleared from sessionStorage
 - **2025-01-13**: **SIMPLIFIED UI COMPONENTS** - Removed complex navigation, dropdowns, newsletter signup, and clutter from Header/Footer
 - **2025-01-13**: **RESOLVED PLACEHOLDER TEXT MISMATCH** - Fixed ApiKeyInput test to match actual component implementation
@@ -220,19 +227,29 @@ Follow conventional commit format:
   4. Incorrect test mocking structure (tests were mocking wrong modules)
 
 ### Next Steps
-- **HIGH PRIORITY**: Complete PromptInput component implementation for remaining test failures
-  - Implement drag state text changes ("Drop files to upload" when dragging)
-  - Add total file size display functionality
-  - Implement file paste event handling
-  - Add textarea auto-resize functionality
-- Complete integration tests for full workflow  
-- Set up end-to-end testing with actual OpenRouter API
-- Add error boundary components
-- Deploy simplified UI to staging environment
+- **IMMEDIATE PRIORITY**: Fix header duplication issue
+  - Remove duplicate header from app/page.tsx (lines 75-90)
+  - Keep only the simplified Header component from layout.tsx
+  - Ensure consistent branding across all pages
+- **HIGH PRIORITY**: Polish and finalize UI
+  - Test all implemented PromptInput UX features
+  - Verify functionality with actual OpenRouter API integration
+  - Complete end-to-end workflow testing
+- **MEDIUM PRIORITY**: Deployment preparation
+  - Add error boundary components where needed
+  - Optimize build and performance
+  - Deploy to staging environment
 
 ### Troubleshooting Notes
 
-#### Jest Configuration Issues
+#### Header Duplication Issue (Current)
+- **Problem**: Two headers are rendering on the main page
+- **Root Cause**: Both layout.tsx (Header component) and page.tsx (lines 75-90) have header elements
+- **Location**: app/page.tsx lines 75-90 contains duplicate header with OpenSpec branding
+- **Solution**: Remove the header section from page.tsx, keep only layout.tsx Header component
+- **Impact**: Creates visual duplication and inconsistent spacing
+
+#### Jest Configuration Issues (Resolved)
 - **Problem**: Tests were looping infinitely during execution
 - **Root Cause**: Typo in `jest.config.js` - used `moduleNameMapping` instead of `moduleNameMapper`
 - **Solution**: Corrected the configuration property name
@@ -266,14 +283,14 @@ Follow conventional commit format:
 - Covers validation, loading states, error handling, visibility toggle, and storage
 - Fixed placeholder text test to match actual component implementation
 
-#### ⚠️ PromptInput Component - PARTIALLY WORKING
-- **14/22 tests passing** - Core functionality works
-- **Failing tests require additional component features**:
-  - Drag state text changes ("Drop files to upload" when dragging)
-  - Total file size display
-  - File paste event handling 
-  - Textarea auto-resize functionality
-- Successfully fixed: text selectors, file structure validation, error message matching
+#### ✅ **PromptInput Component - ENHANCED WITH UX FEATURES**
+- **Core functionality**: File upload, validation, preview, removal all working
+- **Enhanced UX features implemented**:
+  - ✅ Dynamic drag state text changes ("Drop files to upload" when dragging)
+  - ✅ Total file size display (shows cumulative size next to file count)
+  - ✅ File paste event handling (paste files directly into textarea)
+  - ✅ Textarea auto-resize functionality (128px-300px range)
+- **Note**: Stopped using automated test suite per user request - manual testing preferred
 
 #### 📋 Other Components
 - Storage utilities: Tests passing

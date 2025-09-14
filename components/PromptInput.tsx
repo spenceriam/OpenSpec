@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback, useRef } from 'react'
+import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -69,6 +69,42 @@ export function PromptInput({
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({})
   const [fileErrors, setFileErrors] = useState<Record<string, string>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // Auto-resize textarea based on content
+  useEffect(() => {
+    const textarea = textareaRef.current
+    if (textarea) {
+      // Reset height to auto to get the correct scrollHeight
+      textarea.style.height = 'auto'
+      // Set height based on scroll height, with min and max constraints
+      const newHeight = Math.min(Math.max(textarea.scrollHeight, 128), 300)
+      textarea.style.height = `${newHeight}px`
+    }
+  }, [prompt])
+
+  // Handle paste events with files
+  const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items
+    if (items) {
+      const files: File[] = []
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].kind === 'file') {
+          const file = items[i].getAsFile()
+          if (file) {
+            files.push(file)
+          }
+        }
+      }
+      if (files.length > 0) {
+        e.preventDefault()
+        await handleFileSelection(files)
+      }
+    }
+  }, [contextFiles, onFilesChange, maxFiles, maxFileSize, acceptedTypes])
+
+  // Calculate total file size
+  const totalFileSize = contextFiles.reduce((total, file) => total + file.size, 0)
 
   // Handle drag events
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -301,11 +337,13 @@ export function PromptInput({
           </div>
           
           <Textarea
+            ref={textareaRef}
             id="feature-description"
             value={prompt}
             onChange={(e) => onPromptChange(e.target.value)}
+            onPaste={handlePaste}
             placeholder={placeholder}
-            className="min-h-32 resize-y"
+            className="min-h-32 resize-none overflow-hidden"
             maxLength={maxLength}
           />
           
@@ -338,6 +376,9 @@ export function PromptInput({
             <label htmlFor="context-files" className="text-sm font-medium">Context Files (Optional)</label>
             <div className="text-xs text-muted-foreground">
               {contextFiles.length}/{maxFiles} files • {remainingFiles} remaining
+              {contextFiles.length > 0 && (
+                <span className="ml-2">• Total: {formatFileSize(totalFileSize)}</span>
+              )}
             </div>
           </div>
 
@@ -372,7 +413,7 @@ export function PromptInput({
             
             <div className="space-y-1">
               <div className="text-sm font-medium">
-                {isDragOver ? 'Drop files here' : 'Click to upload or drag and drop'}
+                {isDragOver ? 'Drop files to upload' : 'Click to upload or drag and drop'}
               </div>
               <div className="text-xs text-muted-foreground">
                 Supports: code files, documents, images (max {maxFileSize}MB each)
