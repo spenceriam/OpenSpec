@@ -308,6 +308,8 @@ export function useAPIKeyStorage(): UseSessionStorageReturn & {
   clearAPIKey: () => void
   hasValidKey: boolean
 } {
+  const [isAPITested, setIsAPITested] = useState(false)
+  
   const sessionStorage = useSessionStorage('openspec-api-key', {
     validateKey: validateAPIKey,
     onError: (error, operation) => {
@@ -318,25 +320,48 @@ export function useAPIKeyStorage(): UseSessionStorageReturn & {
         console.info('API key added')
       } else if (!newValue && oldValue) {
         console.info('API key removed')
+        setIsAPITested(false) // Clear test status when key is removed
       } else if (newValue && oldValue && newValue !== oldValue) {
         console.info('API key updated')
+        setIsAPITested(false) // Clear test status when key changes
       }
     }
   })
 
+  // Check for stored validation status
+  useEffect(() => {
+    if (typeof window !== 'undefined' && sessionStorage.value) {
+      const testStatus = window.sessionStorage.getItem('openspec-api-key-tested')
+      setIsAPITested(testStatus === 'true')
+    }
+  }, [sessionStorage.value])
+
   const setAPIKey = useCallback((key: string) => {
     if (!key.trim()) {
       sessionStorage.setValue(null)
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.removeItem('openspec-api-key-tested')
+      }
+      setIsAPITested(false)
       return
     }
     sessionStorage.setValue(key.trim())
+    // Mark as tested when set (assuming it was tested before setting)
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem('openspec-api-key-tested', 'true')
+    }
+    setIsAPITested(true)
   }, [sessionStorage])
 
   const clearAPIKey = useCallback(() => {
     sessionStorage.remove()
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.removeItem('openspec-api-key-tested')
+    }
+    setIsAPITested(false)
   }, [sessionStorage])
 
-  const hasValidKey = Boolean(sessionStorage.value && sessionStorage.isValid)
+  const hasValidKey = Boolean(sessionStorage.value && sessionStorage.isValid && isAPITested)
 
   return {
     ...sessionStorage,
