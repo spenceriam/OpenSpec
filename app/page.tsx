@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
-import { FileText, Download, Play, Key, Brain, MessageSquare, ArrowRight } from 'lucide-react'
+import { FileText, Download, Play, Key, Brain, MessageSquare } from 'lucide-react'
 
 // This would normally come from your workflow state management
 const mockWorkflowState = {
@@ -71,7 +71,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white">
-
       {/* Main Content */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Compact Hero Section */}
@@ -107,7 +106,7 @@ export default function Home() {
                   currentStep >= step ? 'text-gray-900' : 'text-gray-400'
                 }`}>{label}</p>
               </div>
-            ))
+            ))}
           </div>
         </div>
 
