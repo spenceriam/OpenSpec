@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import ApiKeyInput from '@/components/ApiKeyInput'
 import ModelSelector from '@/components/ModelSelector'
 import PromptInput from '@/components/PromptInput'
@@ -14,7 +14,9 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { FileText, Download, Play, Key, Brain, MessageSquare, Check, X } from 'lucide-react'
+import { useAPIKeyStorage, useModelStorage } from '@/hooks/useSessionStorage'
 
 // This would normally come from your workflow state management
 const mockWorkflowState = {
@@ -34,24 +36,41 @@ const mockWorkflowState = {
 }
 
 export default function Home() {
-  const [apiKey, setApiKey] = useState('')
-  const [selectedModel, setSelectedModel] = useState(null)
+  const { value: apiKey, hasValidKey } = useAPIKeyStorage()
+  const { selectedModel, setModel, clearModel } = useModelStorage()
   const [prompt, setPrompt] = useState('')
   const [contextFiles, setContextFiles] = useState([])
   const [workflowState, setWorkflowState] = useState(mockWorkflowState)
   const [currentStep, setCurrentStep] = useState(1)
   const [showExportDialog, setShowExportDialog] = useState(false)
+  const [showContinueDialog, setShowContinueDialog] = useState(false)
   const [apiKeyStatus, setApiKeyStatus] = useState<'loading' | 'success' | 'error' | null>(null)
   const [modelLoadStatus, setModelLoadStatus] = useState<'loading' | 'success' | 'error' | null>(null)
 
-  const hasApiKey = Boolean(apiKey)
+  const hasApiKey = Boolean(apiKey && hasValidKey)
   const hasModel = Boolean(selectedModel)
   const hasPrompt = prompt.trim().length > 10
   const canStartGeneration = hasApiKey && hasModel && hasPrompt
 
+  // Check for existing session data on mount
+  useEffect(() => {
+    if (hasApiKey || selectedModel) {
+      setShowContinueDialog(true)
+    }
+    
+    // Set initial step based on what's already completed
+    if (hasApiKey && selectedModel) {
+      setCurrentStep(3)
+      setApiKeyStatus('success')
+      setModelLoadStatus('success')
+    } else if (hasApiKey) {
+      setCurrentStep(2)
+      setApiKeyStatus('success')
+    }
+  }, [hasApiKey, selectedModel])
+
   const handleApiKeyValidated = (isValid: boolean, key?: string) => {
     if (isValid && key) {
-      setApiKey(key)
       setApiKeyStatus('success')
       setCurrentStep(2)
     } else {
@@ -60,9 +79,23 @@ export default function Home() {
   }
 
   const handleModelSelected = (model: any) => {
-    setSelectedModel(model)
+    setModel(model)
     setModelLoadStatus('success')
     setCurrentStep(3)
+  }
+
+  const handleStartOver = () => {
+    // Clear all session data except prompt and files
+    clearModel()
+    setApiKeyStatus(null)
+    setModelLoadStatus(null)
+    setCurrentStep(1)
+    setShowContinueDialog(false)
+  }
+
+  const handleContinue = () => {
+    setShowContinueDialog(false)
+    // Step is already set correctly in useEffect
   }
 
   const handleGenerate = () => {
@@ -279,6 +312,35 @@ export default function Home() {
         workflowState={workflowState}
         onExport={handleExport}
       />
+
+      {/* Continue/Start Over Dialog */}
+      <Dialog open={showContinueDialog} onOpenChange={setShowContinueDialog}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Welcome back!</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              We found some saved information from your previous session:
+              {hasApiKey && <div className="mt-2 text-green-400">✓ API Key saved</div>}
+              {selectedModel && <div className="text-green-400">✓ AI Model selected: {selectedModel.name}</div>}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={handleStartOver}
+              className="border-border text-foreground hover:bg-muted"
+            >
+              Start Over
+            </Button>
+            <Button 
+              onClick={handleContinue}
+              className="bg-primary hover:bg-primary/80 text-primary-foreground"
+            >
+              Continue Where I Left Off
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

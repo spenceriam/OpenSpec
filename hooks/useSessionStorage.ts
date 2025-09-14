@@ -345,3 +345,46 @@ export function useAPIKeyStorage(): UseSessionStorageReturn & {
     hasValidKey
   }
 }
+
+// Specialized hook for selected model storage
+export function useModelStorage() {
+  const [storedModel, setStoredModel] = useState<any>(null)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem('openspec-selected-model')
+      if (stored) {
+        try {
+          setStoredModel(JSON.parse(stored))
+        } catch (error) {
+          console.warn('Failed to parse stored model:', error)
+        }
+      }
+    }
+  }, [])
+
+  const setModel = useCallback((model: any) => {
+    if (typeof window !== 'undefined') {
+      if (model) {
+        sessionStorage.setItem('openspec-selected-model', JSON.stringify(model))
+        setStoredModel(model)
+      } else {
+        sessionStorage.removeItem('openspec-selected-model')
+        setStoredModel(null)
+      }
+    }
+  }, [])
+
+  const clearModel = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('openspec-selected-model')
+      setStoredModel(null)
+    }
+  }, [])
+
+  return {
+    selectedModel: storedModel,
+    setModel,
+    clearModel
+  }
+}
