@@ -111,30 +111,45 @@ export default function Home() {
               { step: 4, label: 'Generate', icon: Play, completed: false }
             ].map(({ step, label, icon: Icon, completed }) => {
               const clickable = isStepClickable(step, completed)
+              const isGenerateStep = step === 4
+              const isReadyToGenerate = isGenerateStep && canStartGeneration
+              
               return (
                 <div 
                   key={step} 
                   className={`flex flex-col items-center ${
-                    clickable ? 'cursor-pointer group' : 'cursor-default'
+                    clickable || isReadyToGenerate ? 'cursor-pointer group' : 'cursor-default'
                   }`}
-                  onClick={() => clickable && handleStepClick(step)}
+                  onClick={() => {
+                    if (isReadyToGenerate) {
+                      handleGenerate()
+                    } else if (clickable) {
+                      handleStepClick(step)
+                    }
+                  }}
                 >
-                  <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 mb-2 transition-colors ${
+                  <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 mb-2 transition-all duration-200 ${
                     currentStep > step || completed 
                       ? 'bg-black border-black text-white' 
                       : currentStep === step 
                         ? 'border-black text-black bg-white'
-                        : 'border-gray-300 text-gray-300 bg-white'
+                        : isReadyToGenerate
+                          ? 'bg-green-500 border-green-500 text-white shadow-lg animate-pulse'
+                          : 'border-gray-300 text-gray-300 bg-white'
                   } ${
-                    clickable ? 'group-hover:border-gray-500 group-hover:text-gray-500' : ''
+                    (clickable || isReadyToGenerate) ? 'group-hover:scale-110' : ''
+                  } ${
+                    isReadyToGenerate ? 'ring-2 ring-green-200' : ''
                   }`}>
                     <Icon className="w-4 h-4" />
                   </div>
                   <p className={`text-xs font-medium ${
                     currentStep >= step ? 'text-gray-900' : 'text-gray-400'
                   } ${
-                    clickable ? 'group-hover:text-gray-600' : ''
-                  }`}>{label}</p>
+                    isReadyToGenerate ? 'text-green-600 font-bold' : ''
+                  } ${
+                    (clickable || isReadyToGenerate) ? 'group-hover:text-gray-600' : ''
+                  }`}>{isReadyToGenerate ? 'Generate!' : label}</p>
                 </div>
               )
             })}
@@ -176,27 +191,6 @@ export default function Home() {
                   onFilesChange={setContextFiles}
                 />
               </ComponentErrorBoundary>
-              
-              {hasPrompt && (
-                <div className="mt-4">
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-sm font-medium text-gray-900 mb-1">Ready to Generate</h3>
-                          <p className="text-xs text-gray-600">
-                            All setup complete. Click generate to create your specification.
-                          </p>
-                        </div>
-                        <Button onClick={handleGenerate} size="default" className="bg-black hover:bg-gray-800 text-white">
-                          <Play className="h-3 w-3 mr-1" />
-                          Generate
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
             </div>
           )}
 

@@ -330,7 +330,7 @@ export function ModelSelector({
   }
 
   return (
-    <Card className={`model-selector max-w-4xl ${className}`}>
+    <Card className={`model-selector max-w-5xl ${className}`}>
       <CardHeader className="pb-4">
         <CardTitle className="text-base">Select AI Model</CardTitle>
         <CardDescription className="text-sm">

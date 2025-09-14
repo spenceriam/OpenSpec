@@ -185,7 +185,7 @@ export function ApiKeyInput({
   const keyMasked = apiKey ? `${apiKey.substring(0, 8)}${'*'.repeat(20)}${apiKey.substring(-4)}` : ''
 
   return (
-    <Card className={`${className} border-gray-200 shadow-sm`}>
+    <Card className={`${className} border-gray-200 shadow-sm max-w-5xl mx-auto`}>
       <CardHeader className="pb-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

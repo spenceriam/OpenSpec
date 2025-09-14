@@ -77,8 +77,8 @@ export function PromptInput({
     if (textarea) {
       // Reset height to auto to get the correct scrollHeight
       textarea.style.height = 'auto'
-      // Set height based on scroll height, with min and max constraints  
-      const newHeight = Math.min(Math.max(textarea.scrollHeight, 80), 200)
+      // Set height based on scroll height, with min and max constraints
+      const newHeight = Math.min(Math.max(textarea.scrollHeight, 96), 192) // min-h-24 = 96px, max-h-48 = 192px
       textarea.style.height = `${newHeight}px`
     }
   }, [prompt])
@@ -317,7 +317,7 @@ export function PromptInput({
   const remainingFiles = maxFiles - contextFiles.length
 
   return (
-    <Card className={`prompt-input ${className}`}>
+    <Card className={`prompt-input max-w-5xl mx-auto ${className}`}>
       <CardHeader className="pb-3">
         <CardTitle className="text-base">Feature Description & Context</CardTitle>
         <CardDescription className="text-xs">
@@ -343,7 +343,7 @@ export function PromptInput({
             onChange={(e) => onPromptChange(e.target.value)}
             onPaste={handlePaste}
             placeholder={placeholder}
-            className="min-h-20 resize-none overflow-hidden text-sm"
+            className="min-h-24 max-h-48 resize-none overflow-y-auto text-sm"
             maxLength={maxLength}
           />
           
