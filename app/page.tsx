@@ -69,6 +69,24 @@ export default function Home() {
     setShowExportDialog(false)
   }
 
+  // Handle step navigation - allow going back to previous steps
+  const handleStepClick = (step: number) => {
+    // Only allow navigation to completed steps or the current step
+    if (step <= currentStep || (step === 1) || 
+        (step === 2 && hasApiKey) || 
+        (step === 3 && hasApiKey && hasModel)) {
+      setCurrentStep(step)
+    }
+  }
+
+  // Check if step is clickable
+  const isStepClickable = (step: number, completed: boolean) => {
+    return step < currentStep || completed || 
+           (step === 1) || 
+           (step === 2 && hasApiKey) || 
+           (step === 3 && hasApiKey && hasModel)
+  }
+
   return (
     <div className="h-full bg-white flex flex-col">
       {/* Main Content */}
@@ -91,22 +109,35 @@ export default function Home() {
               { step: 2, label: 'AI Model', icon: Brain, completed: hasModel },
               { step: 3, label: 'Prompt', icon: MessageSquare, completed: hasPrompt },
               { step: 4, label: 'Generate', icon: Play, completed: false }
-            ].map(({ step, label, icon: Icon, completed }) => (
-              <div key={step} className="flex flex-col items-center">
-                <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 mb-2 ${
-                  currentStep > step || completed 
-                    ? 'bg-black border-black text-white' 
-                    : currentStep === step 
-                      ? 'border-black text-black bg-white'
-                      : 'border-gray-300 text-gray-300 bg-white'
-                }`}>
-                  <Icon className="w-4 h-4" />
+            ].map(({ step, label, icon: Icon, completed }) => {
+              const clickable = isStepClickable(step, completed)
+              return (
+                <div 
+                  key={step} 
+                  className={`flex flex-col items-center ${
+                    clickable ? 'cursor-pointer group' : 'cursor-default'
+                  }`}
+                  onClick={() => clickable && handleStepClick(step)}
+                >
+                  <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 mb-2 transition-colors ${
+                    currentStep > step || completed 
+                      ? 'bg-black border-black text-white' 
+                      : currentStep === step 
+                        ? 'border-black text-black bg-white'
+                        : 'border-gray-300 text-gray-300 bg-white'
+                  } ${
+                    clickable ? 'group-hover:border-gray-500 group-hover:text-gray-500' : ''
+                  }`}>
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <p className={`text-xs font-medium ${
+                    currentStep >= step ? 'text-gray-900' : 'text-gray-400'
+                  } ${
+                    clickable ? 'group-hover:text-gray-600' : ''
+                  }`}>{label}</p>
                 </div>
-                <p className={`text-xs font-medium ${
-                  currentStep >= step ? 'text-gray-900' : 'text-gray-400'
-                }`}>{label}</p>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
 
