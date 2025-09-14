@@ -62,6 +62,14 @@ export function useSessionStorage(
   
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const prevValueRef = useRef<string | null>(null)
+  const onErrorRef = useRef(onError)
+  const validateKeyRef = useRef(validateKey)
+
+  // Update refs when options change
+  useEffect(() => {
+    onErrorRef.current = onError
+    validateKeyRef.current = validateKey
+  }, [onError, validateKey])
 
   // Get value from sessionStorage
   const getStoredValue = useCallback((): string | null => {
@@ -74,11 +82,11 @@ export function useSessionStorage(
       return item
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error))
-      onError?.(err, 'get')
+      onErrorRef.current?.(err, 'get')
       setError(err)
       return null
     }
-  }, [key, onError])
+  }, [key])
 
   // Set value to sessionStorage
   const setStoredValue = useCallback(
@@ -104,11 +112,11 @@ export function useSessionStorage(
         
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error))
-        onError?.(err, 'set')
+        onErrorRef.current?.(err, 'set')
         setError(err)
       }
     },
-    [key, onError, onStorageChange]
+    [key, onStorageChange]
   )
 
   // Set value with optional auto-save
@@ -117,8 +125,8 @@ export function useSessionStorage(
       setStateValue(newValue)
       
       // Validate the new value
-      if (newValue && validateKey) {
-        const valid = validateKey(newValue)
+      if (newValue && validateKeyRef.current) {
+        const valid = validateKeyRef.current(newValue)
         setIsValid(valid)
         
         if (!valid) {
@@ -146,7 +154,7 @@ export function useSessionStorage(
         setStoredValue(newValue)
       }
     },
-    [autoSave, autoSaveDelay, validateKey, setStoredValue]
+    [autoSave, autoSaveDelay, setStoredValue]
   )
 
   // Remove value from sessionStorage
@@ -169,10 +177,10 @@ export function useSessionStorage(
       
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error))
-      onError?.(err, 'remove')
+      onErrorRef.current?.(err, 'remove')
       setError(err)
     }
-  }, [key, onError])
+  }, [key])
 
   // Test API key connection
   const testConnection = useCallback(async (): Promise<boolean> => {
@@ -213,8 +221,8 @@ export function useSessionStorage(
       setStateValue(storedValue)
       prevValueRef.current = storedValue
       
-      if (validateKey) {
-        const valid = validateKey(storedValue)
+      if (validateKeyRef.current) {
+        const valid = validateKeyRef.current(storedValue)
         setIsValid(valid)
         
         if (!valid) {
@@ -222,7 +230,7 @@ export function useSessionStorage(
         }
       }
     }
-  }, [getStoredValue, validateKey])
+  }, [getStoredValue])
 
   // Listen for storage changes from other tabs
   useEffect(() => {
@@ -236,8 +244,8 @@ export function useSessionStorage(
         setStateValue(newValue)
         prevValueRef.current = newValue
         
-        if (newValue && validateKey) {
-          const valid = validateKey(newValue)
+        if (newValue && validateKeyRef.current) {
+          const valid = validateKeyRef.current(newValue)
           setIsValid(valid)
           
           if (!valid) {
@@ -254,7 +262,7 @@ export function useSessionStorage(
 
     window.addEventListener('storage', handleStorageChange)
     return () => window.removeEventListener('storage', handleStorageChange)
-  }, [key, validateKey])
+  }, [key])
 
   // Cleanup auto-save timeout on unmount
   useEffect(() => {

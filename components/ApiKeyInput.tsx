@@ -25,6 +25,11 @@ export function ApiKeyInput({
 }: ApiKeyInputProps) {
   const { value: apiKey, setAPIKey, clearAPIKey, isValid: isValidKey } = useAPIKeyStorage()
   const [inputValue, setInputValue] = useState(apiKey || '')
+  
+  // Update inputValue when apiKey changes from storage
+  useEffect(() => {
+    setInputValue(apiKey || '')
+  }, [apiKey])
   const [showKey, setShowKey] = useState(false)
   const [isTestingKey, setIsTestingKey] = useState(false)
   const [testResult, setTestResult] = useState<{
@@ -48,30 +53,32 @@ export function ApiKeyInput({
     try {
       const client = new OpenRouterClient(keyToTest)
       
-      // Test connection and get account info
-      const testResult = await client.testConnection()
+      // Test connection
+      const isValid = await client.testConnection()
       
-      if (testResult.success) {
+      if (isValid) {
         setTestResult({
-          isValid: true,
-          credits: testResult.credits,
-          models: testResult.models
+          isValid: true
         })
+        // Save valid key to sessionStorage
+        setAPIKey(keyToTest)
         onApiKeyValidated?.(true, keyToTest)
         return true
       } else {
         setTestResult({
           isValid: false,
-          error: testResult.error || 'Invalid API key'
+          error: 'Invalid API key'
         })
-        onApiKeyValidated?.(false)
+        // Clear invalid key from sessionStorage
+        clearAPIKey()
+        onApiKeyValidated?.(false, keyToTest)
         return false
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to test API key'
       setTestResult({
         isValid: false,
-        error: errorMessage
+        error: `Validation failed: ${errorMessage}`
       })
       onApiKeyValidated?.(false)
       return false
@@ -131,9 +138,23 @@ export function ApiKeyInput({
   // Handle manual test
   const handleTestKey = useCallback(() => {
     const keyToTest = inputValue.trim() || apiKey
-    if (keyToTest) {
-      testApiKey(keyToTest)
+    if (!keyToTest) {
+      setTestResult({ isValid: false, error: 'Please enter an API key' })
+      onApiKeyValidated?.(false)
+      return
     }
+    
+    // Validate key format
+    if (!keyToTest.startsWith('sk-or-') && !keyToTest.startsWith('sk-')) {
+      setTestResult({ 
+        isValid: false, 
+        error: 'Invalid API key format' 
+      })
+      onApiKeyValidated?.(false, keyToTest)
+      return
+    }
+    
+    testApiKey(keyToTest)
   }, [inputValue, apiKey, testApiKey])
 
   // Handle key press
@@ -176,7 +197,7 @@ export function ApiKeyInput({
             </Badge>
           )}
         </div>
-        <CardDescription>
+        <CardDescription id="api-key-description">
           Enter your OpenRouter API key to access AI models for spec generation.{' '}
           <a 
             href="https://openrouter.ai/keys" 
@@ -184,7 +205,7 @@ export function ApiKeyInput({
             rel="noopener noreferrer"
             className="inline-flex items-center text-blue-600 hover:underline"
           >
-            Get your key here <ExternalLink className="h-3 w-3 ml-1" />
+            Get your API key from OpenRouter <ExternalLink className="h-3 w-3 ml-1" />
           </a>
         </CardDescription>
       </CardHeader>
@@ -223,12 +244,15 @@ export function ApiKeyInput({
           <div className="relative">
             <Input
               type={showKey ? 'text' : 'password'}
-              placeholder="sk-or-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              placeholder="Enter your OpenRouter API key"
               value={inputValue}
               onChange={handleInputChange}
               onKeyPress={handleKeyPress}
               className="pr-20"
               disabled={isTestingKey}
+              aria-label="OpenRouter API Key"
+              aria-describedby="api-key-description"
+              required
             />
             <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
               <Button
@@ -238,6 +262,7 @@ export function ApiKeyInput({
                 onClick={() => setShowKey(!showKey)}
                 className="h-6 w-6 p-0"
                 disabled={isTestingKey}
+                aria-label="toggle key visibility"
               >
                 {showKey ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
               </Button>
@@ -263,8 +288,9 @@ export function ApiKeyInput({
               </Button>
             )}
             
-            {showTestButton && (apiKey || inputValue.trim()) && (
+            {showTestButton && (
               <Button 
+                type="button"
                 variant="outline"
                 onClick={handleTestKey}
                 disabled={isTestingKey}
@@ -273,10 +299,10 @@ export function ApiKeyInput({
                 {isTestingKey ? (
                   <>
                     <Loader2 className="h-3 w-3 mr-2 animate-spin" />
-                    Testing...
+                    Validating...
                   </>
                 ) : (
-                  'Test Key'
+                  'Validate Key'
                 )}
               </Button>
             )}
@@ -294,7 +320,10 @@ export function ApiKeyInput({
             <AlertDescription>
               {testResult.isValid ? (
                 <div className="space-y-1">
-                  <div className="font-medium text-green-800">API key is valid!</div>
+                  <div className="font-medium flex items-center gap-1">
+                    <span>✓</span>
+                    <span>API key validated successfully</span>
+                  </div>
                   {testResult.credits !== undefined && (
                     <div className="text-sm">
                       Credits: ${testResult.credits?.toFixed(2) || '0.00'}
@@ -308,8 +337,13 @@ export function ApiKeyInput({
                 </div>
               ) : (
                 <div>
-                  <span className="font-medium">API key validation failed:</span>{' '}
-                  {testResult.error}
+                  <span className="font-medium flex items-center gap-1">
+                    <span>✗</span>
+                    <span>API key validation failed</span>
+                  </span>
+                  {testResult.error && (
+                    <div className="mt-1">{testResult.error}</div>
+                  )}
                 </div>
               )}
             </AlertDescription>
