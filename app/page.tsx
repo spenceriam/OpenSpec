@@ -12,8 +12,9 @@ import ExportDialog from '@/components/ExportDialog'
 import ErrorBoundary, { ComponentErrorBoundary } from '@/components/ErrorBoundary'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { FileText, Download, Zap, Settings } from 'lucide-react'
+import { Separator } from '@/components/ui/separator'
+import { Badge } from '@/components/ui/badge'
+import { FileText, Download, Play, Key, Brain, MessageSquare, ArrowRight } from 'lucide-react'
 
 // This would normally come from your workflow state management
 const mockWorkflowState = {
@@ -38,7 +39,7 @@ export default function Home() {
   const [prompt, setPrompt] = useState('')
   const [contextFiles, setContextFiles] = useState([])
   const [workflowState, setWorkflowState] = useState(mockWorkflowState)
-  const [activeTab, setActiveTab] = useState('setup')
+  const [currentStep, setCurrentStep] = useState(1)
   const [showExportDialog, setShowExportDialog] = useState(false)
 
   const hasApiKey = Boolean(apiKey)
@@ -49,13 +50,18 @@ export default function Home() {
   const handleApiKeyValidated = (isValid: boolean, key?: string) => {
     if (isValid && key) {
       setApiKey(key)
+      setCurrentStep(2)
     }
   }
 
+  const handleModelSelected = (model: any) => {
+    setSelectedModel(model)
+    setCurrentStep(3)
+  }
+
   const handleGenerate = () => {
-    // This would trigger the actual generation process
     console.log('Starting generation with:', { apiKey, selectedModel, prompt, contextFiles })
-    setActiveTab('workflow')
+    setCurrentStep(4)
   }
 
   const handleExport = (options: any) => {
@@ -64,59 +70,96 @@ export default function Home() {
   }
 
   return (
-    <div className="container mx-auto py-8 space-y-8">
-      {/* Hero Section */}
-      <div className="text-center space-y-4 mb-12">
-        <h1 className="text-4xl font-bold tracking-tight">
-          Generate Technical Specifications with AI
-        </h1>
-        <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-          Create comprehensive requirements, design documents, and implementation tasks using 
-          OpenRouter's AI models with automatic diagram generation.
-        </p>
+    <div className="min-h-screen bg-white">
+      {/* Clean Header */}
+      <div className="border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-6">
+            <div className="flex items-center space-x-3">
+              <div className="h-8 w-8 bg-black rounded-md flex items-center justify-center">
+                <FileText className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-semibold text-gray-900">OpenSpec</h1>
+                <p className="text-sm text-gray-500">AI-Powered Specification Generator</p>
+              </div>
+            </div>
+            <Badge variant="secondary">Beta</Badge>
+          </div>
+        </div>
       </div>
 
-      {/* Main Application */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="setup" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            Setup
-          </TabsTrigger>
-          <TabsTrigger value="workflow" className="flex items-center gap-2" disabled={!canStartGeneration}>
-            <Zap className="h-4 w-4" />
-            Generate
-          </TabsTrigger>
-          <TabsTrigger value="preview" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Preview
-          </TabsTrigger>
-          <TabsTrigger value="export" className="flex items-center gap-2">
-            <Download className="h-4 w-4" />
-            Export
-          </TabsTrigger>
-        </TabsList>
+      {/* Main Content */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Hero Section */}
+        <div className="text-center mb-16">
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">
+            Generate Technical Specifications
+          </h2>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            Create comprehensive requirements, design documents, and implementation tasks using AI models with automatic diagram generation.
+          </p>
+        </div>
 
-        {/* Setup Tab */}
-        <TabsContent value="setup" className="space-y-8">
-          <div className="grid gap-8">
+        {/* Step Progress */}
+        <div className="mb-12">
+          <div className="flex items-center justify-between mb-8">
+            {[
+              { step: 1, label: 'API Key', icon: Key, completed: hasApiKey },
+              { step: 2, label: 'AI Model', icon: Brain, completed: hasModel },
+              { step: 3, label: 'Prompt', icon: MessageSquare, completed: hasPrompt },
+              { step: 4, label: 'Generate', icon: Play, completed: false }
+            ].map(({ step, label, icon: Icon, completed }, index) => (
+              <div key={step} className="flex items-center">
+                <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
+                  currentStep > step || completed 
+                    ? 'bg-black border-black text-white' 
+                    : currentStep === step 
+                      ? 'border-black text-black bg-white'
+                      : 'border-gray-300 text-gray-300 bg-white'
+                }`}>
+                  <Icon className="w-5 h-5" />
+                </div>
+                <div className="ml-3">
+                  <p className={`text-sm font-medium ${
+                    currentStep >= step ? 'text-gray-900' : 'text-gray-400'
+                  }`}>{label}</p>
+                </div>
+                {index < 3 && (
+                  <ArrowRight className="w-5 h-5 text-gray-300 ml-8" />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Step Content */}
+        <div className="space-y-8">
+          {/* Step 1: API Key */}
+          <div className={currentStep === 1 ? 'block' : 'hidden'}>
             <ComponentErrorBoundary name="ApiKeyInput">
               <ApiKeyInput
                 onApiKeyValidated={handleApiKeyValidated}
                 autoTest={true}
               />
             </ComponentErrorBoundary>
+          </div>
 
-            {hasApiKey && (
+          {/* Step 2: Model Selection */}
+          {hasApiKey && (
+            <div className={currentStep === 2 ? 'block' : 'hidden'}>
               <ComponentErrorBoundary name="ModelSelector">
                 <ModelSelector
                   selectedModel={selectedModel}
-                  onModelSelect={setSelectedModel}
+                  onModelSelect={handleModelSelected}
                 />
               </ComponentErrorBoundary>
-            )}
+            </div>
+          )}
 
-            {hasModel && (
+          {/* Step 3: Prompt Input */}
+          {hasModel && (
+            <div className={currentStep === 3 ? 'block' : 'hidden'}>
               <ComponentErrorBoundary name="PromptInput">
                 <PromptInput
                   prompt={prompt}
@@ -125,94 +168,81 @@ export default function Home() {
                   onFilesChange={setContextFiles}
                 />
               </ComponentErrorBoundary>
-            )}
-
-            {canStartGeneration && (
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium">Ready to Generate</div>
-                      <div className="text-sm text-muted-foreground">
-                        All setup complete. Click generate to create your specification.
+              
+              {hasPrompt && (
+                <div className="mt-8">
+                  <Card>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-medium text-gray-900 mb-1">Ready to Generate</h3>
+                          <p className="text-sm text-gray-600">
+                            All setup complete. Click generate to create your specification.
+                          </p>
+                        </div>
+                        <Button onClick={handleGenerate} size="lg" className="bg-black hover:bg-gray-800 text-white">
+                          <Play className="h-4 w-4 mr-2" />
+                          Generate Specification
+                        </Button>
                       </div>
-                    </div>
-                    <Button onClick={handleGenerate} size="lg" className="flex items-center gap-2">
-                      <Zap className="h-4 w-4" />
-                      Generate Specification
-                    </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 4: Generation/Results */}
+          {currentStep === 4 && (
+            <div className="space-y-8">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Play className="h-5 w-5" />
+                    Generating Your Specification
+                  </CardTitle>
+                  <CardDescription>
+                    AI is creating your technical specification based on your requirements.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6">
+                    <ComponentErrorBoundary name="WorkflowProgress">
+                      <WorkflowProgress workflowState={workflowState} />
+                    </ComponentErrorBoundary>
+                    
+                    <Separator />
+                    
+                    <ComponentErrorBoundary name="MarkdownPreview">
+                      <MarkdownPreview
+                        content={workflowState.phaseContent[workflowState.currentPhase] || '# Generating content...\n\nYour specification is being created. This will appear here once generation begins.'}
+                        title={`${workflowState.currentPhase.charAt(0).toUpperCase() + workflowState.currentPhase.slice(1)} Preview`}
+                        showDiagrams={true}
+                        showStats={true}
+                      />
+                    </ComponentErrorBoundary>
                   </div>
                 </CardContent>
               </Card>
-            )}
-          </div>
-        </TabsContent>
 
-        {/* Workflow Tab */}
-        <TabsContent value="workflow" className="space-y-8">
-          <div className="grid gap-8 lg:grid-cols-3">
-            <div className="lg:col-span-1">
-              <ComponentErrorBoundary name="WorkflowProgress">
-                <WorkflowProgress
-                  workflowState={workflowState}
-                />
-              </ComponentErrorBoundary>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Export Options</CardTitle>
+                  <CardDescription>
+                    Download your generated specification in various formats
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button onClick={() => setShowExportDialog(true)} variant="outline" className="border-gray-300">
+                    <Download className="h-4 w-4 mr-2" />
+                    Export Specification
+                  </Button>
+                </CardContent>
+              </Card>
             </div>
-            <div className="lg:col-span-2 space-y-6">
-              <ComponentErrorBoundary name="ApprovalControls">
-                <ApprovalControls
-                  phase={workflowState.currentPhase}
-                  content={workflowState.phaseContent[workflowState.currentPhase]}
-                  approvalState={workflowState.approvals[workflowState.currentPhase]}
-                  onApprove={() => console.log('Approved')}
-                  onReject={() => console.log('Rejected')}
-                  onRequestRefinement={() => console.log('Request refinement')}
-                />
-              </ComponentErrorBoundary>
-              
-              {workflowState.phaseContent[workflowState.currentPhase] && (
-                <ComponentErrorBoundary name="ContentRefinement">
-                  <ContentRefinement
-                    phase={workflowState.currentPhase}
-                    originalContent={workflowState.phaseContent[workflowState.currentPhase]}
-                    onRefinementRequest={() => console.log('Refinement requested')}
-                  />
-                </ComponentErrorBoundary>
-              )}
-            </div>
-          </div>
-        </TabsContent>
-
-        {/* Preview Tab */}
-        <TabsContent value="preview" className="space-y-8">
-          <ComponentErrorBoundary name="MarkdownPreview">
-            <MarkdownPreview
-              content={workflowState.phaseContent[workflowState.currentPhase] || '# No content generated yet\n\nGenerate some content in the workflow tab to see it here.'}
-              title={`${workflowState.currentPhase.charAt(0).toUpperCase() + workflowState.currentPhase.slice(1)} Preview`}
-              showDiagrams={true}
-              showStats={true}
-            />
-          </ComponentErrorBoundary>
-        </TabsContent>
-
-        {/* Export Tab */}
-        <TabsContent value="export" className="space-y-8">
-          <Card>
-            <CardHeader>
-              <CardTitle>Export Specification</CardTitle>
-              <CardDescription>
-                Download your generated specification in various formats
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button onClick={() => setShowExportDialog(true)} className="flex items-center gap-2">
-                <Download className="h-4 w-4" />
-                Open Export Dialog
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+          )}
+        </div>
+      </div>
 
       {/* Export Dialog */}
       <ExportDialog

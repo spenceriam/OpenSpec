@@ -185,54 +185,52 @@ export function ApiKeyInput({
   const keyMasked = apiKey ? `${apiKey.substring(0, 8)}${'*'.repeat(20)}${apiKey.substring(-4)}` : ''
 
   return (
-    <Card className={`api-key-input ${className}`}>
-      <CardHeader className="pb-4">
-        <div className="flex items-center gap-2">
-          <Key className="h-5 w-5" />
-          <CardTitle className="text-lg">OpenRouter API Key</CardTitle>
+    <Card className={`${className} border-gray-200 shadow-sm`}>
+      <CardHeader className="pb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gray-100 rounded-lg">
+              <Key className="h-5 w-5 text-gray-700" />
+            </div>
+            <div>
+              <CardTitle className="text-lg font-semibold text-gray-900">OpenRouter API Key</CardTitle>
+              <CardDescription className="text-gray-600 mt-1">
+                Connect your OpenRouter account to access AI models
+              </CardDescription>
+            </div>
+          </div>
           {hasValidKey && (
-            <Badge variant="secondary" className="ml-auto">
+            <Badge className="bg-green-50 text-green-700 border-green-200">
               <CheckCircle className="h-3 w-3 mr-1" />
               Connected
             </Badge>
           )}
         </div>
-        <CardDescription id="api-key-description">
-          Enter your OpenRouter API key to access AI models for spec generation.{' '}
-          <a 
-            href="https://openrouter.ai/keys" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="inline-flex items-center text-blue-600 hover:underline"
-          >
-            Get your API key from OpenRouter <ExternalLink className="h-3 w-3 ml-1" />
-          </a>
-        </CardDescription>
       </CardHeader>
       
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
         {/* Current key status */}
         {apiKey && (
-          <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">Current key:</span>
-              <code className="text-xs bg-background px-2 py-1 rounded">
+          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-gray-700">Current key:</span>
+              <code className="text-sm bg-white px-3 py-1 rounded border border-gray-200 font-mono text-gray-800">
                 {showKey ? apiKey : keyMasked}
               </code>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowKey(!showKey)}
-                className="h-6 w-6 p-0"
+                className="h-8 w-8 p-0 hover:bg-gray-200"
               >
-                {showKey ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                {showKey ? <EyeOff className="h-4 w-4 text-gray-600" /> : <Eye className="h-4 w-4 text-gray-600" />}
               </Button>
             </div>
             <Button
               variant="outline"
               size="sm"
               onClick={handleClearKey}
-              className="text-xs"
+              className="text-sm border-gray-300 text-gray-700 hover:bg-gray-50"
             >
               Clear
             </Button>
@@ -240,46 +238,46 @@ export function ApiKeyInput({
         )}
 
         {/* API key input */}
-        <div className="space-y-2">
+        <div className="space-y-4">
           <div className="relative">
             <Input
               type={showKey ? 'text' : 'password'}
-              placeholder="Enter your OpenRouter API key"
+              placeholder="sk-or-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
               value={inputValue}
               onChange={handleInputChange}
               onKeyPress={handleKeyPress}
-              className="pr-20"
+              className="pr-12 h-12 text-base border-gray-300 focus:border-gray-900 focus:ring-gray-900"
               disabled={isTestingKey}
               aria-label="OpenRouter API Key"
               aria-describedby="api-key-description"
               required
             />
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowKey(!showKey)}
-                className="h-6 w-6 p-0"
+                className="h-8 w-8 p-0 hover:bg-gray-100"
                 disabled={isTestingKey}
                 aria-label="toggle key visibility"
               >
-                {showKey ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                {showKey ? <EyeOff className="h-4 w-4 text-gray-500" /> : <Eye className="h-4 w-4 text-gray-500" />}
               </Button>
             </div>
           </div>
           
           {/* Action buttons */}
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             {showSaveButton && (
               <Button 
                 onClick={handleSaveKey}
                 disabled={isTestingKey}
-                size="sm"
+                className="bg-black hover:bg-gray-800 text-white"
               >
                 {isTestingKey && autoTest ? (
                   <>
-                    <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     Testing...
                   </>
                 ) : (
@@ -294,11 +292,11 @@ export function ApiKeyInput({
                 variant="outline"
                 onClick={handleTestKey}
                 disabled={isTestingKey}
-                size="sm"
+                className="border-gray-300 text-gray-700 hover:bg-gray-50"
               >
                 {isTestingKey ? (
                   <>
-                    <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     Validating...
                   </>
                 ) : (
@@ -307,42 +305,55 @@ export function ApiKeyInput({
               </Button>
             )}
           </div>
+          
+          {/* Get API Key Link */}
+          <div className="text-sm">
+            <span className="text-gray-600">Don't have an API key? </span>
+            <a 
+              href="https://openrouter.ai/keys" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-gray-900 hover:text-black underline underline-offset-2 font-medium"
+            >
+              Get your API key from OpenRouter
+            </a>
+          </div>
         </div>
 
         {/* Test result */}
         {testResult && (
-          <Alert variant={testResult.isValid ? "default" : "destructive"}>
+          <Alert className={`border ${testResult.isValid ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
             {testResult.isValid ? (
-              <CheckCircle className="h-4 w-4" />
+              <CheckCircle className="h-4 w-4 text-green-600" />
             ) : (
-              <AlertCircle className="h-4 w-4" />
+              <AlertCircle className="h-4 w-4 text-red-600" />
             )}
             <AlertDescription>
               {testResult.isValid ? (
-                <div className="space-y-1">
-                  <div className="font-medium flex items-center gap-1">
-                    <span>✓</span>
+                <div className="space-y-2">
+                  <div className="font-medium flex items-center gap-2 text-green-800">
+                    <span className="text-green-600">✓</span>
                     <span>API key validated successfully</span>
                   </div>
                   {testResult.credits !== undefined && (
-                    <div className="text-sm">
+                    <div className="text-sm text-green-700">
                       Credits: ${testResult.credits?.toFixed(2) || '0.00'}
                     </div>
                   )}
                   {testResult.models !== undefined && (
-                    <div className="text-sm">
+                    <div className="text-sm text-green-700">
                       Available models: {testResult.models}
                     </div>
                   )}
                 </div>
               ) : (
                 <div>
-                  <span className="font-medium flex items-center gap-1">
-                    <span>✗</span>
+                  <div className="font-medium flex items-center gap-2 text-red-800">
+                    <span className="text-red-600">✗</span>
                     <span>API key validation failed</span>
-                  </span>
+                  </div>
                   {testResult.error && (
-                    <div className="mt-1">{testResult.error}</div>
+                    <div className="mt-2 text-sm text-red-700">{testResult.error}</div>
                   )}
                 </div>
               )}
@@ -350,24 +361,14 @@ export function ApiKeyInput({
           </Alert>
         )}
 
-        {/* Security notice */}
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            <div className="text-sm">
-              <strong>Privacy Notice:</strong> Your API key is stored securely in your browser's 
-              session storage and will be cleared when you close the browser. It is never sent 
-              to our servers - all API calls go directly to OpenRouter.
+        {/* Privacy notice */}
+        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-4 w-4 text-gray-500 mt-0.5 flex-shrink-0" />
+            <div className="text-sm text-gray-600 leading-relaxed">
+              <span className="font-medium text-gray-700">Privacy Notice:</span> Your API key is stored securely in your browser's session storage and is never sent to our servers. All AI requests go directly to OpenRouter.
             </div>
-          </AlertDescription>
-        </Alert>
-
-        {/* Usage information */}
-        <div className="text-xs text-muted-foreground space-y-1">
-          <div>• API keys starting with "sk-or-" are OpenRouter keys</div>
-          <div>• Keys starting with "sk-" are also supported</div>
-          <div>• Keys are validated by testing connection to OpenRouter</div>
-          <div>• All data is stored locally and cleared on browser close</div>
+          </div>
         </div>
       </CardContent>
     </Card>
