@@ -207,14 +207,23 @@ Follow conventional commit format:
 - ✅ **ApiKeyInput tests fully working (18/18 passing)** - All critical functionality verified
 - ✅ **PromptInput UX Features Implemented**: Dynamic drag text, total file size display, paste handling, textarea auto-resize
 - ✅ **HEADER DUPLICATION ISSUE FIXED**: Removed duplicate header from page.tsx, now using only layout.tsx Header component
+- ✅ **API KEY VALIDATION BUG FIXED**: Fixed ModelSelector method name from getAvailableModels() to listModels()
 
 ### Recent Changes
+- **2025-01-14**: **FIXED API KEY VALIDATION ERROR** - Resolved 'client.getAvailableModels is not a function' error:
+  - Updated ModelSelector.tsx to call client.listModels() instead of getAvailableModels()
+  - Fixed API route /api/models to use correct method name
+  - Updated test files to mock correct method
+- **2025-01-14**: **FIXED HEADER DUPLICATION AND IMPROVED LAYOUT** - Professional layout improvements:
+  - Removed duplicate header from page.tsx, now using only layout.tsx Header
+  - Fixed header alignment: left-align brand with justify-between layout
+  - Fixed footer alignment: proper left/right layout with X.com contact link
+  - Updated messaging: built for agentic coding needs in open source
 - **2025-01-14**: **IMPLEMENTED MISSING UX FEATURES IN PROMPTINPUT** - All missing features implemented:
   - Dynamic drag state text: Changes to "Drop files to upload" when dragging
   - Total file size display: Shows cumulative size next to file count
   - Paste file handling: Users can paste files into textarea
   - Textarea auto-resize: Height adjusts based on content (min 128px, max 300px)
-- **2025-01-14**: **IDENTIFIED HEADER DUPLICATION ISSUE** - Two headers rendering: layout Header + page header (lines 75-90)
 - **2025-01-13**: **FIXED CRITICAL API KEY SECURITY BUG** - Invalid API keys are now properly cleared from sessionStorage
 - **2025-01-13**: **SIMPLIFIED UI COMPONENTS** - Removed complex navigation, dropdowns, newsletter signup, and clutter from Header/Footer
 - **2025-01-13**: **RESOLVED PLACEHOLDER TEXT MISMATCH** - Fixed ApiKeyInput test to match actual component implementation
@@ -227,10 +236,6 @@ Follow conventional commit format:
   4. Incorrect test mocking structure (tests were mocking wrong modules)
 
 ### Next Steps
-- **IMMEDIATE PRIORITY**: Fix header duplication issue
-  - Remove duplicate header from app/page.tsx (lines 75-90)
-  - Keep only the simplified Header component from layout.tsx
-  - Ensure consistent branding across all pages
 - **HIGH PRIORITY**: Polish and finalize UI
   - Test all implemented PromptInput UX features
   - Verify functionality with actual OpenRouter API integration

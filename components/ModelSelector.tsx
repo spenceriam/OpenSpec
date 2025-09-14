@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { 
   ChevronDown, 
@@ -37,7 +38,7 @@ interface ModelSelectorProps {
   className?: string
 }
 
-type SortOption = 'popularity' | 'price-low' | 'price-high' | 'context-high' | 'name'
+type SortOption = 'latest' | 'name-az' | 'name-za' | 'cost-low' | 'cost-high' | 'popularity'
 
 export function ModelSelector({
   selectedModel,
@@ -54,6 +55,7 @@ export function ModelSelector({
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [sortBy, setSortBy] = useState<SortOption>('popularity')
+  const [showFreeOnly, setShowFreeOnly] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
 
   // Fetch available models
@@ -94,6 +96,12 @@ export function ModelSelector({
     }
   }, [apiKey, fetchModels])
 
+  // Helper function to check if model is free
+  const isFreeModel = (model: OpenRouterModel): boolean => {
+    return parseFloat(model.pricing?.prompt?.toString() || '0') === 0 &&
+           parseFloat(model.pricing?.completion?.toString() || '0') === 0
+  }
+
   // Filter and sort models
   const filteredAndSortedModels = useMemo(() => {
     let result = [...models]
@@ -101,6 +109,11 @@ export function ModelSelector({
     // Apply search filter
     if (searchQuery.trim()) {
       result = searchModels(result, searchQuery)
+    }
+
+    // Apply free models filter
+    if (showFreeOnly) {
+      result = result.filter(isFreeModel)
     }
 
     // Apply capability filter
@@ -117,23 +130,30 @@ export function ModelSelector({
     // Sort models
     result.sort((a, b) => {
       switch (sortBy) {
-        case 'popularity':
+        case 'latest':
+          // Sort by created date if available, fallback to popularity
+          const aDate = new Date(a.created || 0).getTime()
+          const bDate = new Date(b.created || 0).getTime()
+          if (aDate && bDate) {
+            return bDate - aDate
+          }
           return (b.top_provider?.popularity || 0) - (a.top_provider?.popularity || 0)
-        case 'price-low':
-          return (a.pricing?.prompt || 0) - (b.pricing?.prompt || 0)
-        case 'price-high':
-          return (b.pricing?.prompt || 0) - (a.pricing?.prompt || 0)
-        case 'context-high':
-          return (b.context_length || 0) - (a.context_length || 0)
-        case 'name':
+        case 'name-az':
           return a.name.localeCompare(b.name)
+        case 'name-za':
+          return b.name.localeCompare(a.name)
+        case 'cost-low':
+          return (parseFloat(a.pricing?.prompt?.toString() || '0')) - (parseFloat(b.pricing?.prompt?.toString() || '0'))
+        case 'cost-high':
+          return (parseFloat(b.pricing?.prompt?.toString() || '0')) - (parseFloat(a.pricing?.prompt?.toString() || '0'))
+        case 'popularity':
         default:
-          return 0
+          return (b.top_provider?.popularity || 0) - (a.top_provider?.popularity || 0)
       }
     })
 
     return result
-  }, [models, searchQuery, filterByCapability, categoryFilter, sortBy])
+  }, [models, searchQuery, filterByCapability, categoryFilter, sortBy, showFreeOnly])
 
   // Get model categories for filter
   const modelCategories = useMemo(() => {
@@ -207,6 +227,7 @@ export function ModelSelector({
   const renderModelItem = (model: OpenRouterModel) => {
     const isSelected = selectedModel?.id === model.id
     const isPopular = (model.top_provider?.popularity || 0) > 50
+    const modelIsFree = isFreeModel(model)
 
     return (
       <CommandItem
@@ -228,6 +249,11 @@ export function ModelSelector({
                 <Badge variant="outline" className="text-xs">
                   <Star className="h-3 w-3 mr-1" />
                   Popular
+                </Badge>
+              )}
+              {modelIsFree && (
+                <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 border-green-300">
+                  Free
                 </Badge>
               )}
             </div>
@@ -319,21 +345,40 @@ export function ModelSelector({
             </Button>
           </PopoverTrigger>
 
-          <PopoverContent className="w-96 p-0" align="start">
+          <PopoverContent className="w-[500px] p-0" align="start">
             <Command>
-              <div className="border-b p-2 space-y-2">
+              <div className="border-b p-3 space-y-3">
+                {/* Search Box */}
                 <CommandInput 
                   placeholder="Search models..." 
                   value={searchQuery}
                   onValueChange={setSearchQuery}
+                  className="border rounded-md"
                 />
                 
-                <div className="flex gap-2">
+                {/* Filters Row */}
+                <div className="flex gap-2 flex-wrap">
+                  {/* Sort Dropdown */}
+                  <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue placeholder="Sort by" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="popularity">Most Popular</SelectItem>
+                      <SelectItem value="latest">Latest</SelectItem>
+                      <SelectItem value="name-az">Name: A-Z</SelectItem>
+                      <SelectItem value="name-za">Name: Z-A</SelectItem>
+                      <SelectItem value="cost-low">Cost: $ → $$$</SelectItem>
+                      <SelectItem value="cost-high">Cost: $$$ → $</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {/* Category Filter */}
                   <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                    <SelectTrigger className="flex-1">
+                    <SelectTrigger className="w-[120px]">
                       <div className="flex items-center gap-1">
                         <Filter className="h-3 w-3" />
-                        <SelectValue />
+                        <SelectValue placeholder="Category" />
                       </div>
                     </SelectTrigger>
                     <SelectContent>
@@ -346,18 +391,20 @@ export function ModelSelector({
                     </SelectContent>
                   </Select>
 
-                  <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-                    <SelectTrigger className="flex-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="popularity">Most Popular</SelectItem>
-                      <SelectItem value="price-low">Price: Low to High</SelectItem>
-                      <SelectItem value="price-high">Price: High to Low</SelectItem>
-                      <SelectItem value="context-high">Highest Context</SelectItem>
-                      <SelectItem value="name">Name: A-Z</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  {/* Free Models Checkbox */}
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="free-only" 
+                      checked={showFreeOnly}
+                      onCheckedChange={setShowFreeOnly}
+                    />
+                    <label 
+                      htmlFor="free-only" 
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      Free models only
+                    </label>
+                  </div>
                 </div>
               </div>
 
@@ -392,9 +439,17 @@ export function ModelSelector({
 
         {/* Model statistics */}
         {models.length > 0 && (
-          <div className="text-xs text-muted-foreground">
-            Showing {filteredAndSortedModels.length} of {models.length} models
-            {searchQuery && ` matching "${searchQuery}"`}
+          <div className="text-xs text-muted-foreground flex items-center justify-between">
+            <span>
+              Showing {filteredAndSortedModels.length} of {models.length} models
+              {searchQuery && ` matching "${searchQuery}"`}
+              {showFreeOnly && ' (free only)'}
+            </span>
+            {showFreeOnly && (
+              <span className="text-green-600 font-medium">
+                {filteredAndSortedModels.filter(isFreeModel).length} free models
+              </span>
+            )}
           </div>
         )}
 
