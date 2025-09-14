@@ -277,9 +277,10 @@ OpenSpec is open source software licensed under the [MIT License](LICENSE).
 - **Documentation**: Check the code comments and type definitions
 - **Issues**: [GitHub Issues](https://github.com/openspec/openspec/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/openspec/openspec/discussions)
+- **Contact**: Reach out to [@spencer_i_am](https://x.com/spencer_i_am) on X
 
 ---
 
-**Made with ❤️ by the OpenSpec community**
+**Made with ❤️ for open source agentic coding**
 
-*Democratizing spec-driven development, one specification at a time.*
+*Built to solve agentic coding needs for open source development.*

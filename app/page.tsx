@@ -71,23 +71,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Clean Header */}
-      <div className="border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center space-x-3">
-              <div className="h-8 w-8 bg-black rounded-md flex items-center justify-center">
-                <FileText className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-semibold text-gray-900">OpenSpec</h1>
-                <p className="text-sm text-gray-500">AI-Powered Specification Generator</p>
-              </div>
-            </div>
-            <Badge variant="secondary">Beta</Badge>
-          </div>
-        </div>
-      </div>
 
       {/* Main Content */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
