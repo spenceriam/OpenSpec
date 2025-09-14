@@ -33,14 +33,26 @@ export interface OpenRouterCompletionResponse {
 export interface OpenRouterModel {
   id: string
   name: string
+  description?: string
+  created?: number
   context_length: number
   pricing: {
     prompt: string
     completion: string
   }
-  architecture?: {
-    modality: string
+  top_provider?: {
+    context_length?: number
+    max_completion_tokens?: number
+    popularity?: number
   }
+  architecture?: {
+    modality: string | string[]
+    input_modalities?: string[]
+    output_modalities?: string[]
+    tokenizer?: string
+    instruct_type?: string | null
+  }
+  supported_parameters?: string[]
 }
 
 export class OpenRouterClient {

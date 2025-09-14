@@ -100,9 +100,18 @@ export function ModelSelector({
   }
 
   // Helper function to format creation date
-  const formatCreationDate = (created?: string): string => {
+  const formatCreationDate = (created?: string | number): string => {
     if (!created) return ''
-    const date = new Date(created)
+    
+    // Handle Unix timestamp (seconds since epoch)
+    const timestamp = typeof created === 'string' ? parseInt(created) : created
+    
+    // If timestamp is in seconds, convert to milliseconds
+    const date = new Date(timestamp * 1000)
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) return ''
+    
     return date.toLocaleDateString('en-US', { 
       year: 'numeric', 
       month: 'short', 
@@ -112,13 +121,21 @@ export function ModelSelector({
 
   // Helper function to check file support
   const supportsFiles = (model: OpenRouterModel): boolean => {
-    return Boolean(
-      model.supports_files || 
-      model.supports_vision ||
-      (Array.isArray(model.architecture?.modality) 
-        ? model.architecture.modality.includes('vision')
-        : model.architecture?.modality?.includes('vision'))
-    )
+    if (model.supports_files) return true
+    
+    // Check if model supports images (can handle file attachments)
+    const hasImageInput = model.architecture?.input_modalities?.includes('image') ||
+                         model.architecture?.input_modalities?.includes('file')
+    
+    // Check modality string for vision/image support
+    const modalityString = Array.isArray(model.architecture?.modality) 
+      ? model.architecture.modality.join(',') 
+      : model.architecture?.modality || ''
+    
+    const hasVisionInModality = modalityString.includes('image') || 
+                               modalityString.includes('vision')
+    
+    return Boolean(hasImageInput || hasVisionInModality)
   }
 
   // Filter and sort models
