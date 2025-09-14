@@ -194,18 +194,23 @@ Follow conventional commit format:
 
 ## Project Status & Updates
 
-### Current Status: Core Components Implemented with Fixed Testing
+### Current Status: Core Functionality Complete with Simplified UI
 - ✅ Repository initialized with README.md and project documentation
 - ✅ AGENTS.md created following agents.md format
 - ✅ Next.js 14 project setup complete
 - ✅ shadcn/ui component library integration complete
 - ✅ OpenRouter API client implementation complete
 - ✅ Core workflow components created
-- ✅ **Fixed looping test issues** - Main problem was Jest configuration typo (`moduleNameMapping` → `moduleNameMapper`)
+- ✅ **CRITICAL BUG FIXED**: API key clearing on invalid validation now works properly
+- ✅ **UI SIMPLIFIED**: Header and Footer components streamlined to essential branding only
 - ✅ ModelSelector tests fully working (9/9 passing)
-- ⏳ PromptInput tests need refinement (accessibility and text matching issues)
+- ✅ **ApiKeyInput tests fully working (18/18 passing)** - All critical functionality verified
+- ⚠️ PromptInput tests partially working (14/22 passing) - Some complex features need implementation
 
 ### Recent Changes
+- **2025-01-13**: **FIXED CRITICAL API KEY SECURITY BUG** - Invalid API keys are now properly cleared from sessionStorage
+- **2025-01-13**: **SIMPLIFIED UI COMPONENTS** - Removed complex navigation, dropdowns, newsletter signup, and clutter from Header/Footer
+- **2025-01-13**: **RESOLVED PLACEHOLDER TEXT MISMATCH** - Fixed ApiKeyInput test to match actual component implementation
 - **2025-09-13**: Created AGENTS.md as living documentation for coding agents
 - **2025-09-13**: Added comprehensive project structure and guidelines
 - **2025-09-13**: **FIXED CRITICAL LOOPING TEST BUG** - The test sessions were looping due to:
@@ -215,10 +220,15 @@ Follow conventional commit format:
   4. Incorrect test mocking structure (tests were mocking wrong modules)
 
 ### Next Steps
-- Refine PromptInput component tests to match actual component behavior
-- Complete integration tests for full workflow
+- **HIGH PRIORITY**: Complete PromptInput component implementation for remaining test failures
+  - Implement drag state text changes ("Drop files to upload" when dragging)
+  - Add total file size display functionality
+  - Implement file paste event handling
+  - Add textarea auto-resize functionality
+- Complete integration tests for full workflow  
 - Set up end-to-end testing with actual OpenRouter API
 - Add error boundary components
+- Deploy simplified UI to staging environment
 
 ### Troubleshooting Notes
 
@@ -250,14 +260,22 @@ Follow conventional commit format:
 - Properly mocked dependencies
 - Covers API key validation, model loading, selection, filtering, and error handling
 
-#### ⚠️ PromptInput Component
-- Some tests failing due to text content mismatches
-- Component shows "Click to upload or drag and drop" but tests expect "drag drop files here"
-- Accessibility improvements needed (aria-describedby attributes)
-- File handling tests need refinement
+#### ✅ **ApiKeyInput Component - FULLY WORKING**
+- **All tests passing (18/18)** - Critical functionality verified
+- **SECURITY BUG FIXED**: Invalid API keys are properly cleared from sessionStorage
+- Covers validation, loading states, error handling, visibility toggle, and storage
+- Fixed placeholder text test to match actual component implementation
+
+#### ⚠️ PromptInput Component - PARTIALLY WORKING
+- **14/22 tests passing** - Core functionality works
+- **Failing tests require additional component features**:
+  - Drag state text changes ("Drop files to upload" when dragging)
+  - Total file size display
+  - File paste event handling 
+  - Textarea auto-resize functionality
+- Successfully fixed: text selectors, file structure validation, error message matching
 
 #### 📋 Other Components
-- ApiKeyInput: Tests passing
 - Storage utilities: Tests passing
 - useSpecWorkflow hook: Tests passing
 - OpenRouter integration: Tests passing
