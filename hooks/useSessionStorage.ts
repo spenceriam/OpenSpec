@@ -388,3 +388,87 @@ export function useModelStorage() {
     clearModel
   }
 }
+
+// Hook for prompt storage
+export function usePromptStorage() {
+  const [storedPrompt, setStoredPrompt] = useState('')
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem('openspec-prompt')
+      if (stored) {
+        setStoredPrompt(stored)
+      }
+    }
+  }, [])
+
+  const setPrompt = useCallback((prompt: string) => {
+    if (typeof window !== 'undefined') {
+      if (prompt && prompt.trim()) {
+        sessionStorage.setItem('openspec-prompt', prompt)
+        setStoredPrompt(prompt)
+      } else {
+        sessionStorage.removeItem('openspec-prompt')
+        setStoredPrompt('')
+      }
+    }
+  }, [])
+
+  const clearPrompt = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('openspec-prompt')
+      setStoredPrompt('')
+    }
+  }, [])
+
+  return {
+    prompt: storedPrompt,
+    setPrompt,
+    clearPrompt
+  }
+}
+
+// Hook for context files storage
+export function useContextFilesStorage() {
+  const [storedFiles, setStoredFiles] = useState<any[]>([])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem('openspec-context-files')
+      if (stored) {
+        try {
+          const files = JSON.parse(stored)
+          setStoredFiles(Array.isArray(files) ? files : [])
+        } catch (error) {
+          console.warn('Failed to parse stored context files:', error)
+          setStoredFiles([])
+        }
+      }
+    }
+  }, [])
+
+  const setFiles = useCallback((files: any[]) => {
+    if (typeof window !== 'undefined') {
+      if (files && files.length > 0) {
+        sessionStorage.setItem('openspec-context-files', JSON.stringify(files))
+        setStoredFiles(files)
+      } else {
+        sessionStorage.removeItem('openspec-context-files')
+        setStoredFiles([])
+      }
+    }
+  }, [])
+
+  const clearFiles = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('openspec-context-files')
+      setStoredFiles([])
+    }
+  }, [])
+
+  return {
+    contextFiles: storedFiles,
+    setFiles,
+    clearFiles
+  }
+}

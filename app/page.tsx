@@ -16,7 +16,7 @@ import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { FileText, Download, Play, Key, Brain, MessageSquare, Check, X } from 'lucide-react'
-import { useAPIKeyStorage, useModelStorage } from '@/hooks/useSessionStorage'
+import { useAPIKeyStorage, useModelStorage, usePromptStorage, useContextFilesStorage } from '@/hooks/useSessionStorage'
 import { DotPattern } from '@/components/magicui/dot-pattern'
 
 // This would normally come from your workflow state management
@@ -37,10 +37,10 @@ const mockWorkflowState = {
 }
 
 export default function Home() {
-  const { value: apiKey, hasValidKey } = useAPIKeyStorage()
+  const { value: apiKey, hasValidKey, clearAPIKey } = useAPIKeyStorage()
   const { selectedModel, setModel, clearModel } = useModelStorage()
-  const [prompt, setPrompt] = useState('')
-  const [contextFiles, setContextFiles] = useState([])
+  const { prompt, setPrompt, clearPrompt } = usePromptStorage()
+  const { contextFiles, setFiles: setContextFiles, clearFiles: clearContextFiles } = useContextFilesStorage()
   const [workflowState, setWorkflowState] = useState(mockWorkflowState)
   const [currentStep, setCurrentStep] = useState(1)
   const [showExportDialog, setShowExportDialog] = useState(false)
@@ -55,12 +55,20 @@ export default function Home() {
 
   // Check for existing session data on mount
   useEffect(() => {
-    if (hasApiKey || selectedModel) {
+    const hasPromptData = prompt.trim().length > 0
+    const hasFiles = contextFiles.length > 0
+    const hasAnySessionData = hasApiKey || selectedModel || hasPromptData || hasFiles
+    
+    if (hasAnySessionData) {
       setShowContinueDialog(true)
     }
     
     // Set initial step based on what's already completed
-    if (hasApiKey && selectedModel) {
+    if (hasApiKey && selectedModel && hasPromptData) {
+      setCurrentStep(3)
+      setApiKeyStatus('success')
+      setModelLoadStatus('success')
+    } else if (hasApiKey && selectedModel) {
       setCurrentStep(3)
       setApiKeyStatus('success')
       setModelLoadStatus('success')
@@ -68,7 +76,7 @@ export default function Home() {
       setCurrentStep(2)
       setApiKeyStatus('success')
     }
-  }, [hasApiKey, selectedModel])
+  }, [hasApiKey, selectedModel, prompt, contextFiles])
 
   const handleApiKeyValidated = (isValid: boolean, key?: string) => {
     if (isValid && key) {
@@ -86,12 +94,22 @@ export default function Home() {
   }
 
   const handleStartOver = () => {
-    // Clear all session data except prompt and files
+    // Clear ALL session data including API key, model, prompt, and context files
+    clearAPIKey()
     clearModel()
+    clearPrompt()
+    clearContextFiles()
+    
+    // Clear current session state
     setApiKeyStatus(null)
     setModelLoadStatus(null)
     setCurrentStep(1)
     setShowContinueDialog(false)
+    
+    // Reset workflow state if needed
+    setWorkflowState(mockWorkflowState)
+    
+    console.log('All session data cleared - starting fresh')
   }
 
   const handleContinue = () => {
@@ -331,8 +349,15 @@ export default function Home() {
             <DialogTitle className="text-foreground">Welcome back!</DialogTitle>
             <DialogDescription className="text-muted-foreground">
               We found some saved information from your previous session:
-              {hasApiKey && <div className="mt-2 text-green-400">✓ API Key saved</div>}
-              {selectedModel && <div className="text-green-400">✓ AI Model selected: {selectedModel.name}</div>}
+              <div className="mt-3 space-y-1">
+                {hasApiKey && <div className="text-green-400 text-sm flex items-center gap-2">✓ API Key saved and validated</div>}
+                {selectedModel && <div className="text-green-400 text-sm flex items-center gap-2">✓ AI Model: {selectedModel.name}</div>}
+                {prompt.trim() && <div className="text-green-400 text-sm flex items-center gap-2">✓ Prompt saved ({prompt.length} characters)</div>}
+                {contextFiles.length > 0 && <div className="text-green-400 text-sm flex items-center gap-2">✓ Context files: {contextFiles.length} file{contextFiles.length !== 1 ? 's' : ''}</div>}
+              </div>
+              <div className="mt-3 text-sm">
+                <strong>Continue</strong> will restore all your saved data, or <strong>Start Over</strong> will clear everything.
+              </div>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
