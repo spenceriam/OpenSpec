@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
-import { FileText, Download, Play, Key, Brain, MessageSquare } from 'lucide-react'
+import { FileText, Download, Play, Key, Brain, MessageSquare, Check, X } from 'lucide-react'
 
 // This would normally come from your workflow state management
 const mockWorkflowState = {
@@ -41,6 +41,8 @@ export default function Home() {
   const [workflowState, setWorkflowState] = useState(mockWorkflowState)
   const [currentStep, setCurrentStep] = useState(1)
   const [showExportDialog, setShowExportDialog] = useState(false)
+  const [apiKeyStatus, setApiKeyStatus] = useState<'loading' | 'success' | 'error' | null>(null)
+  const [modelLoadStatus, setModelLoadStatus] = useState<'loading' | 'success' | 'error' | null>(null)
 
   const hasApiKey = Boolean(apiKey)
   const hasModel = Boolean(selectedModel)
@@ -50,12 +52,16 @@ export default function Home() {
   const handleApiKeyValidated = (isValid: boolean, key?: string) => {
     if (isValid && key) {
       setApiKey(key)
+      setApiKeyStatus('success')
       setCurrentStep(2)
+    } else {
+      setApiKeyStatus('error')
     }
   }
 
   const handleModelSelected = (model: any) => {
     setSelectedModel(model)
+    setModelLoadStatus('success')
     setCurrentStep(3)
   }
 
@@ -88,15 +94,15 @@ export default function Home() {
   }
 
   return (
-    <div className="h-full bg-white flex flex-col">
+    <div className="h-full bg-background flex flex-col">
       {/* Main Content */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex-1 flex flex-col">
         {/* Compact Hero Section */}
         <div className="text-center mb-4">
-          <h2 className="text-xl font-bold text-gray-900 mb-1">
+          <h2 className="text-xl font-bold text-foreground mb-1">
             Generate Technical Specifications
           </h2>
-          <p className="text-xs text-gray-600 max-w-xl mx-auto">
+          <p className="text-xs text-muted-foreground max-w-xl mx-auto">
             Create comprehensive requirements, design documents, and tasks using AI models.
           </p>
         </div>
@@ -114,6 +120,17 @@ export default function Home() {
               const isGenerateStep = step === 4
               const isReadyToGenerate = isGenerateStep && canStartGeneration
               
+              // Determine status for each step
+              let stepStatus: 'success' | 'error' | 'loading' | null = null
+              if (step === 1) stepStatus = apiKeyStatus
+              if (step === 2) stepStatus = modelLoadStatus
+              if (step === 3 && hasPrompt) stepStatus = 'success'
+              
+              // Choose icon based on status
+              let DisplayIcon = Icon
+              if (stepStatus === 'success') DisplayIcon = Check
+              if (stepStatus === 'error') DisplayIcon = X
+              
               return (
                 <div 
                   key={step} 
@@ -129,26 +146,32 @@ export default function Home() {
                   }}
                 >
                   <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 mb-2 transition-all duration-200 ${
-                    currentStep > step || completed 
-                      ? 'bg-black border-black text-white' 
-                      : currentStep === step 
-                        ? 'border-black text-black bg-white'
-                        : isReadyToGenerate
-                          ? 'bg-green-500 border-green-500 text-white shadow-lg animate-pulse'
-                          : 'border-gray-300 text-gray-300 bg-white'
+                    stepStatus === 'success' 
+                      ? 'bg-green-500 border-green-500 text-white' 
+                      : stepStatus === 'error'
+                        ? 'bg-red-500 border-red-500 text-white'
+                        : stepStatus === 'loading'
+                          ? 'bg-blue-500 border-blue-500 text-white animate-spin'
+                          : currentStep === step 
+                            ? 'border-primary text-primary bg-background'
+                            : isReadyToGenerate
+                              ? 'bg-blue-400 border-blue-400 text-white shadow-lg animate-pulse-slow'
+                              : 'border-muted-foreground text-muted-foreground bg-background'
                   } ${
                     (clickable || isReadyToGenerate) ? 'group-hover:scale-110' : ''
                   } ${
-                    isReadyToGenerate ? 'ring-2 ring-green-200' : ''
+                    isReadyToGenerate ? 'ring-2 ring-blue-200' : ''
                   }`}>
-                    <Icon className="w-4 h-4" />
+                    <DisplayIcon className="w-4 h-4" />
                   </div>
                   <p className={`text-xs font-medium ${
-                    currentStep >= step ? 'text-gray-900' : 'text-gray-400'
+                    stepStatus === 'success' ? 'text-green-400' 
+                      : stepStatus === 'error' ? 'text-red-400'
+                        : currentStep >= step ? 'text-foreground' : 'text-muted-foreground'
                   } ${
-                    isReadyToGenerate ? 'text-green-600 font-bold' : ''
+                    isReadyToGenerate ? 'text-blue-400 font-bold' : ''
                   } ${
-                    (clickable || isReadyToGenerate) ? 'group-hover:text-gray-600' : ''
+                    (clickable || isReadyToGenerate) ? 'group-hover:text-primary' : ''
                   }`}>{isReadyToGenerate ? 'Generate!' : label}</p>
                 </div>
               )
@@ -159,14 +182,15 @@ export default function Home() {
         {/* Step Content */}
         <div className="flex-1 flex flex-col justify-start">
           {/* Step 1: API Key */}
-          <div className={currentStep === 1 ? 'block' : 'hidden'}>
-            <ComponentErrorBoundary name="ApiKeyInput">
-              <ApiKeyInput
-                onApiKeyValidated={handleApiKeyValidated}
-                autoTest={true}
-              />
-            </ComponentErrorBoundary>
-          </div>
+            <div className={currentStep === 1 ? 'block' : 'hidden'}>
+              <ComponentErrorBoundary name="ApiKeyInput">
+                <ApiKeyInput
+                  onApiKeyValidated={handleApiKeyValidated}
+                  onLoadingChange={(loading) => setApiKeyStatus(loading ? 'loading' : null)}
+                  autoTest={true}
+                />
+              </ComponentErrorBoundary>
+            </div>
 
           {/* Step 2: Model Selection */}
           {hasApiKey && (
@@ -175,6 +199,8 @@ export default function Home() {
                 <ModelSelector
                   selectedModel={selectedModel}
                   onModelSelect={handleModelSelected}
+                  onLoadingChange={(loading) => setModelLoadStatus(loading ? 'loading' : null)}
+                  onError={() => setModelLoadStatus('error')}
                 />
               </ComponentErrorBoundary>
             </div>

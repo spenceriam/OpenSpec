@@ -12,6 +12,7 @@ import { OpenRouterClient } from '@/lib/openrouter/client'
 
 interface ApiKeyInputProps {
   onApiKeyValidated?: (isValid: boolean, key?: string) => void
+  onLoadingChange?: (loading: boolean) => void
   showTestButton?: boolean
   autoTest?: boolean
   className?: string
@@ -19,6 +20,7 @@ interface ApiKeyInputProps {
 
 export function ApiKeyInput({ 
   onApiKeyValidated, 
+  onLoadingChange,
   showTestButton = true,
   autoTest = false,
   className = '' 
@@ -49,6 +51,7 @@ export function ApiKeyInput({
 
     setIsTestingKey(true)
     setTestResult(null)
+    onLoadingChange?.(true)
 
     try {
       const client = new OpenRouterClient(keyToTest)
@@ -85,6 +88,7 @@ export function ApiKeyInput({
     } finally {
       setIsTestingKey(false)
       setHasTestedCurrentKey(true)
+      onLoadingChange?.(false)
     }
   }, [onApiKeyValidated])
 

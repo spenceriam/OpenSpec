@@ -12,7 +12,7 @@ export default function Footer({ className = '' }: FooterProps) {
   const currentYear = new Date().getFullYear()
 
   return (
-    <footer className={`border-t bg-white/80 backdrop-blur-md supports-[backdrop-filter]:bg-white/60 border-white/20 ${className}`}>
+    <footer className={`border-t bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 border-border ${className}`}>
       <div className="mx-auto max-w-7xl px-6 py-4 lg:px-8">
         <div className="flex flex-col items-center space-y-2">
           <div className="flex flex-col items-center space-y-2">

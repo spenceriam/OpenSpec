@@ -10,7 +10,7 @@ interface HeaderProps {
 
 export default function Header({ className = '' }: HeaderProps) {
   return (
-    <header className={`border-b bg-white/80 backdrop-blur-md supports-[backdrop-filter]:bg-white/60 border-white/20 ${className}`}>
+    <header className={`border-b bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 border-border ${className}`}>
       <nav className="mx-auto max-w-7xl px-6 lg:px-8" aria-label="Global">
         <div className="flex h-16 items-center justify-between">
           {/* Logo and Brand - Left aligned */}

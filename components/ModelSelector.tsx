@@ -30,6 +30,8 @@ import { filterModels, searchModels, categorizeModels, formatPrice } from '@/lib
 interface ModelSelectorProps {
   selectedModel?: OpenRouterModel
   onModelSelect: (model: OpenRouterModel) => void
+  onLoadingChange?: (loading: boolean) => void
+  onError?: () => void
   showCapabilities?: boolean
   showPricing?: boolean
   filterByCapability?: 'vision' | 'reasoning' | 'coding' | 'all'
@@ -41,6 +43,8 @@ type SortOption = 'latest' | 'name-az' | 'name-za' | 'cost-low' | 'cost-high' | 
 export function ModelSelector({
   selectedModel,
   onModelSelect,
+  onLoadingChange,
+  onError,
   showCapabilities = true,
   showPricing = true,
   filterByCapability = 'all',
@@ -64,6 +68,7 @@ export function ModelSelector({
 
     setIsLoading(true)
     setError(null)
+    onLoadingChange?.(true)
 
     try {
       const client = new OpenRouterClient(apiKey)
@@ -71,15 +76,18 @@ export function ModelSelector({
       
       if (fetchedModels.length === 0) {
         setError('No models available with current API key')
+        onError?.()
       } else {
         setModels(fetchedModels)
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load models'
       setError(errorMessage)
+      onError?.()
       console.error('Model loading error:', err)
     } finally {
       setIsLoading(false)
+      onLoadingChange?.(false)
     }
   }, [apiKey])
 
