@@ -48,6 +48,7 @@ export default function Home() {
   const [hasCheckedSession, setHasCheckedSession] = useState(false)
   const [apiKeyStatus, setApiKeyStatus] = useState<'loading' | 'success' | 'error' | null>(null)
   const [modelLoadStatus, setModelLoadStatus] = useState<'loading' | 'success' | 'error' | null>(null)
+  const [forceUpdate, setForceUpdate] = useState(0)
 
   const hasApiKey = Boolean(apiKey && hasValidKey)
   const hasModel = Boolean(selectedModel)
@@ -101,6 +102,11 @@ export default function Home() {
     if (isValid && key) {
       setApiKeyStatus('success')
       setCurrentStep(2)
+      // Force component re-render after small delay to ensure storage hook updates
+      setTimeout(() => {
+        console.log('Forcing component update after validation')
+        setForceUpdate(prev => prev + 1)
+      }, 200)
     } else {
       setApiKeyStatus('error')
     }
