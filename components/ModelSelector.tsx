@@ -54,7 +54,6 @@ export function ModelSelector({
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [sortBy, setSortBy] = useState<SortOption>('popularity')
   const [showFreeOnly, setShowFreeOnly] = useState(false)
-  const [isOpen, setIsOpen] = useState(false)
 
   // Fetch available models
   const fetchModels = useCallback(async () => {
@@ -162,7 +161,6 @@ export function ModelSelector({
   // Handle model selection
   const handleModelSelect = (model: OpenRouterModel) => {
     onModelSelect(model)
-    setIsOpen(false)
   }
 
   // Render model capability badges
@@ -206,16 +204,10 @@ export function ModelSelector({
     if (!showPricing || !model.pricing) return null
 
     return (
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <div className="flex items-center gap-1">
-          <DollarSign className="h-3 w-3" />
-          {formatPrice(model.pricing.prompt)}/1K tokens
-        </div>
+      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+        <span>{formatPrice(model.pricing.prompt)}/1K</span>
         {model.context_length && (
-          <div className="flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            {(model.context_length / 1000).toFixed(0)}K context
-          </div>
+          <span>{(model.context_length / 1000).toFixed(0)}K ctx</span>
         )}
       </div>
     )
@@ -231,19 +223,19 @@ export function ModelSelector({
       <div
         key={model.id}
         onClick={() => handleModelSelect(model)}
-        className={`flex flex-col gap-2 p-3 cursor-pointer hover:bg-muted/50 transition-colors ${
-          isSelected ? 'bg-primary/10 border-primary' : ''
+        className={`flex items-center justify-between p-2 cursor-pointer hover:bg-muted/50 transition-colors ${
+          isSelected ? 'bg-primary/10 border-l-2 border-primary' : ''
         }`}
       >
-        <div className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-2">
-            <Check
-              className={`h-4 w-4 text-primary ${
-                isSelected ? 'opacity-100' : 'opacity-0'
-              }`}
-            />
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <Check
+            className={`h-3 w-3 text-primary flex-shrink-0 ${
+              isSelected ? 'opacity-100' : 'opacity-0'
+            }`}
+          />
+          <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-medium">{model.name}</span>
+              <span className="font-medium text-sm truncate">{model.name}</span>
               {isPopular && (
                 <Badge variant="outline" className="text-xs">
                   <Star className="h-3 w-3 mr-1" />
@@ -256,22 +248,8 @@ export function ModelSelector({
                 </Badge>
               )}
             </div>
+            {renderPricingInfo(model)}
           </div>
-        </div>
-        
-        {model.description && (
-          <p className="text-sm text-muted-foreground ml-6">
-            {model.description}
-          </p>
-        )}
-        
-        <div className="flex items-center justify-between w-full ml-6">
-          {showCapabilities && (
-            <div className="flex items-center gap-1 flex-wrap">
-              {renderCapabilityBadges(model)}
-            </div>
-          )}
-          {renderPricingInfo(model)}
         </div>
       </div>
     )
@@ -294,57 +272,21 @@ export function ModelSelector({
 
   return (
     <Card className={`model-selector ${className}`}>
-      <CardHeader>
-        <CardTitle className="text-lg">AI Model Selection</CardTitle>
-        <CardDescription>
-          Choose from {models.length} available AI models for spec generation
+      <CardHeader className="pb-4">
+        <CardTitle className="text-base">Select AI Model</CardTitle>
+        <CardDescription className="text-sm">
+          {selectedModel ? (
+            <span className="text-green-600 font-medium">Selected: {selectedModel.name}</span>
+          ) : (
+            `Choose from ${models.length} available models`
+          )}
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-4">
-        {/* Current selection display */}
-        {selectedModel && (
-          <div className="p-3 bg-muted rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-medium">{selectedModel.name}</div>
-                {selectedModel.description && (
-                  <div className="text-sm text-muted-foreground">
-                    {selectedModel.description}
-                  </div>
-                )}
-                <div className="flex items-center gap-2 mt-2">
-                  {showCapabilities && renderCapabilityBadges(selectedModel)}
-                  {renderPricingInfo(selectedModel)}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Model selector button */}
-        <Button 
-          variant="outline" 
-          className="w-full justify-between"
-          disabled={isLoading}
-          onClick={() => setIsOpen(!isOpen)}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Loading models...
-            </>
-          ) : selectedModel ? (
-            selectedModel.name
-          ) : (
-            'Select a model...'
-          )}
-          <ChevronDown className={`h-4 w-4 opacity-50 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-        </Button>
-
-        {/* Inline search and filters - always visible when we have models */}
+      <CardContent className="space-y-3">
+        {/* Search and filters - always visible when we have models */}
         {models.length > 0 && (
-          <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
+          <div className="space-y-3">
             {/* Search Box */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -352,7 +294,7 @@ export function ModelSelector({
                 placeholder="Search models..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
+                className="pl-9 h-9"
               />
             </div>
             
@@ -360,7 +302,7 @@ export function ModelSelector({
             <div className="flex gap-2 flex-wrap items-center">
               {/* Sort Dropdown */}
               <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="w-[120px] h-8 text-xs">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent>
@@ -375,7 +317,7 @@ export function ModelSelector({
 
               {/* Category Filter */}
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-[120px]">
+                <SelectTrigger className="w-[100px] h-8 text-xs">
                   <div className="flex items-center gap-1">
                     <Filter className="h-3 w-3" />
                     <SelectValue placeholder="Category" />
@@ -400,24 +342,24 @@ export function ModelSelector({
                 />
                 <label 
                   htmlFor="free-only" 
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
-                  Free models only
+                  Free only
                 </label>
               </div>
             </div>
           </div>
         )}
 
-        {/* Model list - shown when expanded */}
-        {isOpen && models.length > 0 && (
-          <div className="border rounded-lg max-h-96 overflow-y-auto">
+        {/* Model list - always visible when we have models */}
+        {models.length > 0 && (
+          <div className="border rounded-lg h-64 overflow-y-auto">
             {filteredAndSortedModels.length === 0 ? (
-              <div className="text-center py-8">
+              <div className="flex items-center justify-center h-full">
                 {error ? (
-                  <div>
-                    <AlertCircle className="h-6 w-6 mx-auto mb-2 text-destructive" />
-                    <div className="text-sm text-destructive mb-3">{error}</div>
+                  <div className="text-center">
+                    <AlertCircle className="h-5 w-5 mx-auto mb-2 text-destructive" />
+                    <div className="text-xs text-destructive mb-2">{error}</div>
                     <Button 
                       variant="outline" 
                       size="sm" 
@@ -428,7 +370,7 @@ export function ModelSelector({
                     </Button>
                   </div>
                 ) : (
-                  <div className="text-muted-foreground">
+                  <div className="text-xs text-muted-foreground">
                     No models found matching your criteria.
                   </div>
                 )}

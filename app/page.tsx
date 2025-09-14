@@ -73,46 +73,41 @@ export default function Home() {
     <div className="min-h-screen bg-white">
 
       {/* Main Content */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Hero Section */}
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Compact Hero Section */}
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
             Generate Technical Specifications
           </h2>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Create comprehensive requirements, design documents, and implementation tasks using AI models with automatic diagram generation.
+          <p className="text-sm text-gray-600 max-w-xl mx-auto">
+            Create comprehensive requirements, design documents, and tasks using AI models.
           </p>
         </div>
 
         {/* Step Progress */}
-        <div className="mb-12">
-          <div className="flex items-center justify-between mb-8">
+        <div className="mb-6">
+          <div className="flex items-center justify-center gap-8 mb-6">
             {[
               { step: 1, label: 'API Key', icon: Key, completed: hasApiKey },
               { step: 2, label: 'AI Model', icon: Brain, completed: hasModel },
               { step: 3, label: 'Prompt', icon: MessageSquare, completed: hasPrompt },
               { step: 4, label: 'Generate', icon: Play, completed: false }
-            ].map(({ step, label, icon: Icon, completed }, index) => (
-              <div key={step} className="flex items-center">
-                <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
+            ].map(({ step, label, icon: Icon, completed }) => (
+              <div key={step} className="flex flex-col items-center">
+                <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 mb-2 ${
                   currentStep > step || completed 
                     ? 'bg-black border-black text-white' 
                     : currentStep === step 
                       ? 'border-black text-black bg-white'
                       : 'border-gray-300 text-gray-300 bg-white'
                 }`}>
-                  <Icon className="w-5 h-5" />
+                  <Icon className="w-4 h-4" />
                 </div>
-                <div className="ml-3">
-                  <p className={`text-sm font-medium ${
-                    currentStep >= step ? 'text-gray-900' : 'text-gray-400'
-                  }`}>{label}</p>
-                </div>
-                {index < 3 && (
-                  <ArrowRight className="w-5 h-5 text-gray-300 ml-8" />
-                )}
+                <p className={`text-xs font-medium ${
+                  currentStep >= step ? 'text-gray-900' : 'text-gray-400'
+                }`}>{label}</p>
               </div>
-            ))}
+            ))
           </div>
         </div>
 
