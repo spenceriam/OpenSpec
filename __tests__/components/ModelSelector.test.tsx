@@ -10,7 +10,7 @@ jest.mock('@/hooks/useSessionStorage', () => ({
 // Mock the OpenRouter client
 jest.mock('@/lib/openrouter/client', () => ({
   OpenRouterClient: jest.fn().mockImplementation(() => ({
-    getAvailableModels: jest.fn()
+    listModels: jest.fn()
   }))
 }))
 
@@ -40,14 +40,14 @@ describe('ModelSelector Component', () => {
     }
   ]
 
-  let mockGetAvailableModels: jest.Mock
+  let mockListModels: jest.Mock
 
   beforeEach(() => {
     jest.clearAllMocks()
     
-    mockGetAvailableModels = jest.fn().mockResolvedValue(mockModels)
+    mockListModels = jest.fn().mockResolvedValue(mockModels)
     OpenRouterClient.mockImplementation(() => ({
-      getAvailableModels: mockGetAvailableModels
+      listModels: mockListModels
     }))
     
     useAPIKeyStorage.mockReturnValue({ value: 'test-api-key' })
@@ -72,7 +72,7 @@ describe('ModelSelector Component', () => {
       expect(screen.getByText(/select a model/i)).toBeInTheDocument()
     })
 
-    expect(mockGetAvailableModels).toHaveBeenCalled()
+    expect(mockListModels).toHaveBeenCalled()
   })
 
   it('should display selected model when provided', async () => {
@@ -133,7 +133,7 @@ describe('ModelSelector Component', () => {
   })
 
   it('should handle loading errors', async () => {
-    mockGetAvailableModels.mockRejectedValue(new Error('API Error'))
+    mockListModels.mockRejectedValue(new Error('API Error'))
     
     render(<ModelSelector {...defaultProps} />)
 

@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
 
     // Create OpenRouter client and fetch models
     const client = new OpenRouterClient(apiKey)
-    const models = await client.getAvailableModels()
+    const models = await client.listModels()
 
     // Filter and sort models for better UX
     const processedModels = models

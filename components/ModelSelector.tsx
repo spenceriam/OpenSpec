@@ -68,7 +68,7 @@ export function ModelSelector({
 
     try {
       const client = new OpenRouterClient(apiKey)
-      const fetchedModels = await client.getAvailableModels()
+      const fetchedModels = await client.listModels()
       
       if (fetchedModels.length === 0) {
         setError('No models available with current API key')
