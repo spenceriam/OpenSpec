@@ -77,8 +77,8 @@ export function PromptInput({
     if (textarea) {
       // Reset height to auto to get the correct scrollHeight
       textarea.style.height = 'auto'
-      // Set height based on scroll height, with min and max constraints
-      const newHeight = Math.min(Math.max(textarea.scrollHeight, 128), 300)
+      // Set height based on scroll height, with min and max constraints  
+      const newHeight = Math.min(Math.max(textarea.scrollHeight, 80), 200)
       textarea.style.height = `${newHeight}px`
     }
   }, [prompt])
@@ -318,18 +318,18 @@ export function PromptInput({
 
   return (
     <Card className={`prompt-input ${className}`}>
-      <CardHeader>
-        <CardTitle className="text-lg">Feature Description & Context</CardTitle>
-        <CardDescription>
-          Describe what you want to build and optionally upload context files to help the AI understand your requirements better.
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Feature Description & Context</CardTitle>
+        <CardDescription className="text-xs">
+          Describe what you want to build and optionally upload context files.
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3 pt-0">
         {/* Text input */}
-        <div className="space-y-2">
+        <div className="space-y-1">
           <div className="flex items-center justify-between">
-            <label htmlFor="feature-description" className="text-sm font-medium">Feature Description</label>
+            <label htmlFor="feature-description" className="text-xs font-medium">Feature Description</label>
             <div className={`text-xs ${isPromptValid ? 'text-muted-foreground' : 'text-destructive'}`}>
               {prompt.length}/{maxLength} characters 
               {prompt.length < minLength && ` (minimum ${minLength})`}
@@ -343,7 +343,7 @@ export function PromptInput({
             onChange={(e) => onPromptChange(e.target.value)}
             onPaste={handlePaste}
             placeholder={placeholder}
-            className="min-h-24 resize-none overflow-hidden"
+            className="min-h-20 resize-none overflow-hidden text-sm"
             maxLength={maxLength}
           />
           
@@ -371,13 +371,13 @@ export function PromptInput({
         </div>
 
         {/* File upload area */}
-        <div className="space-y-4">
+        <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label htmlFor="context-files" className="text-sm font-medium">Context Files (Optional)</label>
+            <label htmlFor="context-files" className="text-xs font-medium">Context Files (Optional)</label>
             <div className="text-xs text-muted-foreground">
-              {contextFiles.length}/{maxFiles} files • {remainingFiles} remaining
+              {contextFiles.length}/{maxFiles} files
               {contextFiles.length > 0 && (
-                <span className="ml-2">• Total: {formatFileSize(totalFileSize)}</span>
+                <span className="ml-1">• {formatFileSize(totalFileSize)}</span>
               )}
             </div>
           </div>
@@ -385,7 +385,7 @@ export function PromptInput({
           {/* Upload dropzone */}
           <div
             className={`
-              border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors
+              border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors
               ${isDragOver 
                 ? 'border-primary bg-primary/10' 
                 : 'border-muted-foreground/25 hover:border-muted-foreground/50'
@@ -409,54 +409,48 @@ export function PromptInput({
               aria-label="Upload files"
             />
             
-            <Upload className={`h-6 w-6 mx-auto mb-1 ${isDragOver ? 'text-primary' : 'text-muted-foreground'}`} />
+            <Upload className={`h-5 w-5 mx-auto ${isDragOver ? 'text-primary' : 'text-muted-foreground'}`} />
             
-            <div className="space-y-1">
-              <div className="text-sm font-medium">
+            <div className="space-y-0">
+              <div className="text-xs font-medium">
                 {isDragOver ? 'Drop files to upload' : 'Click to upload or drag and drop'}
               </div>
               <div className="text-xs text-muted-foreground">
-                Supports: code files, documents, images (max {maxFileSize}MB each)
+                Code, docs, images (max {maxFileSize}MB each)
               </div>
             </div>
           </div>
 
           {/* File list */}
           {contextFiles.length > 0 && (
-            <div className="space-y-2">
-              <div className="text-sm font-medium">Uploaded Files</div>
-              <div className="space-y-2">
+            <div className="space-y-1">
+              <div className="text-xs font-medium">Uploaded Files</div>
+              <div className="space-y-1">
                 {contextFiles.map((file) => (
-                  <div key={file.id} className="flex items-center gap-3 p-3 border rounded-lg">
+                  <div key={file.id} className="flex items-center gap-2 p-2 border rounded-lg">
                     <div className="flex-shrink-0">
                       {getFileIcon(file)}
                     </div>
                     
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium truncate">{file.name}</span>
-                        <Badge variant="secondary" className="text-xs">
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs font-medium truncate">{file.name}</span>
+                        <Badge variant="secondary" className="text-xs px-1">
                           {formatFileSize(file.size)}
                         </Badge>
                       </div>
                       
-                      {uploadProgress[file.id] !== undefined && uploadProgress[file.id] < 100 ? (
-                        <div className="mt-1">
-                          <Progress value={uploadProgress[file.id]} className="h-2" />
-                        </div>
-                      ) : (
-                        <div className="text-xs text-muted-foreground">
-                          {new Date(file.uploadedAt).toLocaleString()}
-                        </div>
+                      {uploadProgress[file.id] !== undefined && uploadProgress[file.id] < 100 && (
+                        <Progress value={uploadProgress[file.id]} className="h-1 mt-1" />
                       )}
                     </div>
                     
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-0">
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => previewFile(file)}
-                        className="h-8 w-8 p-0"
+                        className="h-6 w-6 p-0"
                         aria-label={`Preview ${file.name}`}
                       >
                         <Eye className="h-3 w-3" />
@@ -465,7 +459,7 @@ export function PromptInput({
                         variant="ghost"
                         size="sm"
                         onClick={() => removeFile(file.id)}
-                        className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                        className="h-6 w-6 p-0 text-destructive hover:text-destructive"
                         aria-label={`Remove ${file.name}`}
                       >
                         <X className="h-3 w-3" />
@@ -505,13 +499,6 @@ export function PromptInput({
             </div>
           )}
 
-          {/* Upload guidelines */}
-          <div className="text-xs text-muted-foreground space-y-1">
-            <div>• Upload code files, documentation, or images for better context</div>
-            <div>• Files are processed locally and included in your API requests</div>
-            <div>• Supported formats: .txt, .md, .json, .js, .ts, .html, .css, .png, .jpg, .pdf</div>
-            <div>• Maximum file size: {maxFileSize}MB per file</div>
-          </div>
         </div>
       </CardContent>
     </Card>

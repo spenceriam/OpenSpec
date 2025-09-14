@@ -90,20 +90,20 @@ export default function Home() {
   return (
     <div className="h-full bg-white flex flex-col">
       {/* Main Content */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex-1 flex flex-col">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex-1 flex flex-col">
         {/* Compact Hero Section */}
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+        <div className="text-center mb-4">
+          <h2 className="text-xl font-bold text-gray-900 mb-1">
             Generate Technical Specifications
           </h2>
-          <p className="text-sm text-gray-600 max-w-xl mx-auto">
+          <p className="text-xs text-gray-600 max-w-xl mx-auto">
             Create comprehensive requirements, design documents, and tasks using AI models.
           </p>
         </div>
 
         {/* Step Progress */}
-        <div className="mb-4">
-          <div className="flex items-center justify-center gap-8 mb-4">
+        <div className="mb-3">
+          <div className="flex items-center justify-center gap-8 mb-3">
             {[
               { step: 1, label: 'API Key', icon: Key, completed: hasApiKey },
               { step: 2, label: 'AI Model', icon: Brain, completed: hasModel },
@@ -178,19 +178,19 @@ export default function Home() {
               </ComponentErrorBoundary>
               
               {hasPrompt && (
-                <div className="mt-8">
+                <div className="mt-4">
                   <Card>
-                    <CardContent className="p-6">
+                    <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="font-medium text-gray-900 mb-1">Ready to Generate</h3>
-                          <p className="text-sm text-gray-600">
+                          <h3 className="text-sm font-medium text-gray-900 mb-1">Ready to Generate</h3>
+                          <p className="text-xs text-gray-600">
                             All setup complete. Click generate to create your specification.
                           </p>
                         </div>
-                        <Button onClick={handleGenerate} size="lg" className="bg-black hover:bg-gray-800 text-white">
-                          <Play className="h-4 w-4 mr-2" />
-                          Generate Specification
+                        <Button onClick={handleGenerate} size="default" className="bg-black hover:bg-gray-800 text-white">
+                          <Play className="h-3 w-3 mr-1" />
+                          Generate
                         </Button>
                       </div>
                     </CardContent>
