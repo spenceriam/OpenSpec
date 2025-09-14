@@ -13,8 +13,8 @@ export default function Footer({ className = '' }: FooterProps) {
 
   return (
     <footer className={`border-t bg-background ${className}`}>
-      <div className="mx-auto max-w-7xl px-6 py-8 lg:px-8">
-        <div className="flex flex-col space-y-6 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+      <div className="mx-auto max-w-7xl px-6 py-4 lg:px-8">
+        <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
           {/* Left side - Brand */}
           <div className="flex items-center space-x-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">

@@ -87,14 +87,14 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#000000" />
       </head>
-      <body className={`${inter.className} antialiased min-h-screen bg-background`}>
+      <body className={`${inter.className} antialiased h-screen bg-background overflow-hidden`}>
         <ErrorBoundary>
-          <div className="relative flex min-h-screen flex-col">
-            <Header className="sticky top-0 z-50 w-full" />
-            <main className="flex-1">
+          <div className="relative flex h-screen flex-col">
+            <Header className="flex-shrink-0 z-50 w-full" />
+            <main className="flex-1 overflow-auto">
               {children}
             </main>
-            <Footer />
+            <Footer className="flex-shrink-0" />
           </div>
           <Toaster />
         </ErrorBoundary>

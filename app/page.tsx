@@ -70,9 +70,9 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="h-full bg-white flex flex-col">
       {/* Main Content */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 flex flex-col">
         {/* Compact Hero Section */}
         <div className="text-center mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
@@ -111,7 +111,7 @@ export default function Home() {
         </div>
 
         {/* Step Content */}
-        <div className="space-y-8">
+        <div className="flex-1 flex flex-col justify-start">
           {/* Step 1: API Key */}
           <div className={currentStep === 1 ? 'block' : 'hidden'}>
             <ComponentErrorBoundary name="ApiKeyInput">

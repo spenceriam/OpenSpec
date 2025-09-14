@@ -99,6 +99,28 @@ export function ModelSelector({
            parseFloat(model.pricing?.completion?.toString() || '0') === 0
   }
 
+  // Helper function to format creation date
+  const formatCreationDate = (created?: string): string => {
+    if (!created) return ''
+    const date = new Date(created)
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    })
+  }
+
+  // Helper function to check file support
+  const supportsFiles = (model: OpenRouterModel): boolean => {
+    return Boolean(
+      model.supports_files || 
+      model.supports_vision ||
+      (Array.isArray(model.architecture?.modality) 
+        ? model.architecture.modality.includes('vision')
+        : model.architecture?.modality?.includes('vision'))
+    )
+  }
+
   // Filter and sort models
   const filteredAndSortedModels = useMemo(() => {
     let result = [...models]
@@ -199,57 +221,77 @@ export function ModelSelector({
     return badges
   }
 
-  // Render pricing information
-  const renderPricingInfo = (model: OpenRouterModel) => {
-    if (!showPricing || !model.pricing) return null
-
-    return (
-      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-        <span>{formatPrice(model.pricing.prompt)}/1K</span>
-        {model.context_length && (
-          <span>{(model.context_length / 1000).toFixed(0)}K ctx</span>
-        )}
-      </div>
-    )
-  }
 
   // Render model item
   const renderModelItem = (model: OpenRouterModel) => {
     const isSelected = selectedModel?.id === model.id
     const isPopular = (model.top_provider?.popularity || 0) > 50
     const modelIsFree = isFreeModel(model)
-
+    const hasFileSupport = supportsFiles(model)
+    const creationDate = formatCreationDate(model.created)
+    
+    // Format pricing per 1M tokens like OpenRouter
+    const promptPrice = parseFloat(model.pricing?.prompt?.toString() || '0')
+    const completionPrice = parseFloat(model.pricing?.completion?.toString() || '0')
+    
     return (
       <div
         key={model.id}
         onClick={() => handleModelSelect(model)}
-        className={`flex items-center justify-between p-2 cursor-pointer hover:bg-muted/50 transition-colors ${
+        className={`flex items-start gap-3 p-3 cursor-pointer hover:bg-muted/50 transition-colors ${
           isSelected ? 'bg-primary/10 border-l-2 border-primary' : ''
         }`}
       >
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <Check
-            className={`h-3 w-3 text-primary flex-shrink-0 ${
-              isSelected ? 'opacity-100' : 'opacity-0'
-            }`}
-          />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-medium text-sm truncate">{model.name}</span>
-              {isPopular && (
-                <Badge variant="outline" className="text-xs">
-                  <Star className="h-3 w-3 mr-1" />
-                  Popular
-                </Badge>
-              )}
-              {modelIsFree && (
-                <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 border-green-300">
-                  Free
-                </Badge>
-              )}
-            </div>
-            {renderPricingInfo(model)}
+        <Check
+          className={`h-4 w-4 text-primary flex-shrink-0 mt-0.5 ${
+            isSelected ? 'opacity-100' : 'opacity-0'
+          }`}
+        />
+        
+        <div className="flex-1 min-w-0 space-y-1">
+          {/* Model name and badges */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-medium text-sm text-gray-900">{model.name}</span>
+            {modelIsFree && (
+              <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 border-green-300">
+                Free
+              </Badge>
+            )}
+            {isPopular && (
+              <Badge variant="outline" className="text-xs">
+                <Star className="h-3 w-3 mr-1" />
+                Popular
+              </Badge>
+            )}
+            {hasFileSupport && (
+              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-300">
+                Files
+              </Badge>
+            )}
           </div>
+          
+          {/* Detailed info line */}
+          <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+            {creationDate && (
+              <span>Created {creationDate}</span>
+            )}
+            {model.context_length && (
+              <span>{(model.context_length / 1000).toLocaleString()}K context</span>
+            )}
+            {!modelIsFree && (
+              <>
+                <span>${(promptPrice * 1000000).toFixed(2)}/M input tokens</span>
+                <span>${(completionPrice * 1000000).toFixed(2)}/M output tokens</span>
+              </>
+            )}
+          </div>
+          
+          {/* Description if there's space and it exists */}
+          {model.description && (
+            <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+              {model.description}
+            </p>
+          )}
         </div>
       </div>
     )
@@ -271,7 +313,7 @@ export function ModelSelector({
   }
 
   return (
-    <Card className={`model-selector ${className}`}>
+    <Card className={`model-selector max-w-4xl ${className}`}>
       <CardHeader className="pb-4">
         <CardTitle className="text-base">Select AI Model</CardTitle>
         <CardDescription className="text-sm">
@@ -317,10 +359,10 @@ export function ModelSelector({
 
               {/* Category Filter */}
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-[100px] h-8 text-xs">
+                <SelectTrigger className="w-[140px] h-8 text-xs">
                   <div className="flex items-center gap-1">
                     <Filter className="h-3 w-3" />
-                    <SelectValue placeholder="Category" />
+                    <SelectValue placeholder="All Categories" />
                   </div>
                 </SelectTrigger>
                 <SelectContent>

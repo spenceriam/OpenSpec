@@ -21,6 +21,7 @@ export interface OpenRouterModel {
   name: string
   description?: string
   context_length: number
+  created?: string
   pricing: {
     prompt: string
     completion: string
@@ -28,9 +29,11 @@ export interface OpenRouterModel {
   top_provider: {
     context_length: number
     max_completion_tokens: number
+    popularity?: number
+    provider_name?: string
   }
   architecture: {
-    modality: string
+    modality: string | string[]
     tokenizer: string
     instruct_type: string
   }
@@ -38,6 +41,9 @@ export interface OpenRouterModel {
     prompt_tokens: string
     completion_tokens: string
   }
+  supports_vision?: boolean
+  supports_files?: boolean
+  supports_function_calling?: boolean
 }
 
 // API request/response types for OpenRouter integration
