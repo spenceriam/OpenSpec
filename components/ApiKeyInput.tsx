@@ -87,7 +87,6 @@ export function ApiKeyInput({
       setHasTestedCurrentKey(true)
       onLoadingChange?.(false)
     }
-    }
   }, [onApiKeyValidated, setAPIKey, clearAPIKey, onLoadingChange])
 
   // Handle input change
@@ -212,50 +211,22 @@ export function ApiKeyInput({
       </CardHeader>
       
       <CardContent className="space-y-6">
-        {/* Current key status */}
-        {apiKey && (
-          <div className="flex items-center justify-between p-4 bg-muted rounded-lg border border-border">
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-foreground">Current key:</span>
-              <code className="text-sm bg-background px-3 py-1 rounded border border-border font-mono text-foreground">
-                {showKey ? apiKey : keyMasked}
-              </code>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowKey(!showKey)}
-                className="h-8 w-8 p-0 hover:bg-muted"
-              >
-                {showKey ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
-              </Button>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleClearKey}
-              className="text-sm border-border text-foreground hover:bg-muted"
-            >
-              Clear
-            </Button>
-          </div>
-        )}
-
-        {/* API key input */}
+        {/* Single unified API key field */}
         <div className="space-y-4">
           <div className="relative">
             <Input
               type={showKey ? 'text' : 'password'}
-              placeholder="sk-or-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              placeholder={apiKey ? "Your API key is saved and validated" : "sk-or-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}
               value={inputValue}
               onChange={handleInputChange}
               onKeyPress={handleKeyPress}
-              className="pr-12 h-12 text-base border-border focus:border-primary focus:ring-primary"
+              className="pr-24 h-12 text-base border-border focus:border-primary focus:ring-primary"
               disabled={isTestingKey}
               aria-label="OpenRouter API Key"
               aria-describedby="api-key-description"
               required
             />
-            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
               <Button
                 type="button"
                 variant="ghost"
@@ -267,8 +238,29 @@ export function ApiKeyInput({
               >
                 {showKey ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
               </Button>
+              {apiKey && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearKey}
+                  className="h-8 w-8 p-0 hover:bg-muted text-muted-foreground hover:text-destructive"
+                  title="Clear API key"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </Button>
+              )}
             </div>
           </div>
+          
+          {/* Show masked key info when key is present */}
+          {apiKey && (
+            <div className="text-sm text-muted-foreground">
+              <span>Saved key: </span>
+              <code className="bg-muted px-2 py-1 rounded font-mono">{keyMasked}</code>
+            </div>
+          )}
           
           {/* Action buttons */}
           <div className="flex gap-3">
@@ -289,7 +281,7 @@ export function ApiKeyInput({
               </Button>
             )}
             
-            {showTestButton && (
+            {showTestButton && (inputValue.trim() || apiKey) && (
               <Button 
                 type="button"
                 variant="outline"
@@ -311,14 +303,15 @@ export function ApiKeyInput({
           
           {/* Get API Key Link */}
           <div className="text-sm">
-            <span className="text-muted-foreground">Don't have an API key? </span>
+            <span className="text-muted-foreground">Don&apos;t have an API key? </span>
             <a 
               href="https://openrouter.ai/keys" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="text-primary hover:text-primary/80 underline underline-offset-2 font-medium"
+              className="text-primary hover:text-primary/80 underline underline-offset-2 font-medium inline-flex items-center gap-1"
             >
               Get your API key from OpenRouter
+              <ExternalLink className="h-3 w-3" />
             </a>
           </div>
         </div>
@@ -369,7 +362,7 @@ export function ApiKeyInput({
           <div className="flex items-start gap-3">
             <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
             <div className="text-sm text-muted-foreground leading-relaxed">
-              <span className="font-medium text-foreground">Privacy Notice:</span> Your API key is stored securely in your browser's session storage and is never sent to our servers. All AI requests go directly to OpenRouter.
+              <span className="font-medium text-foreground">Privacy Notice:</span> Your API key is stored securely in your browser&apos;s session storage and is never sent to our servers. All AI requests go directly to OpenRouter.
             </div>
           </div>
         </div>
