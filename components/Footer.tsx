@@ -12,33 +12,14 @@ export default function Footer({ className = '' }: FooterProps) {
   const currentYear = new Date().getFullYear()
 
   return (
-    <footer className={`border-t bg-background ${className}`}>
+    <footer className={`border-t bg-white/80 backdrop-blur-md supports-[backdrop-filter]:bg-white/60 border-white/20 ${className}`}>
       <div className="mx-auto max-w-7xl px-6 py-4 lg:px-8">
-        <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-          {/* Left side - Brand */}
-          <div className="flex items-center space-x-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <Zap className="h-4 w-4 text-primary-foreground" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xl font-bold">OpenSpec</span>
-              <div className="flex items-center space-x-1">
-                <Badge variant="secondary" className="text-xs px-1.5 py-0">
-                  Beta
-                </Badge>
-                <Badge variant="outline" className="text-xs px-1.5 py-0">
-                  Open Source
-                </Badge>
-              </div>
-            </div>
-          </div>
-          
-          {/* Right side - Description and attribution */}
-          <div className="flex flex-col items-start sm:items-end space-y-2">
+        <div className="flex flex-col items-center space-y-2">
+          <div className="flex flex-col items-center space-y-2">
             <p className="text-sm text-muted-foreground">
               Built to solve agentic coding needs for open source development.
             </p>
-            <div className="flex flex-col items-start sm:items-end gap-1">
+            <div className="flex flex-col items-center gap-1">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
                   Made with <Heart className="h-3 w-3 text-red-500 fill-current" /> for open source

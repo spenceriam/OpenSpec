@@ -325,7 +325,7 @@ export function PromptInput({
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-4">
         {/* Text input */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
@@ -343,7 +343,7 @@ export function PromptInput({
             onChange={(e) => onPromptChange(e.target.value)}
             onPaste={handlePaste}
             placeholder={placeholder}
-            className="min-h-32 resize-none overflow-hidden"
+            className="min-h-24 resize-none overflow-hidden"
             maxLength={maxLength}
           />
           
@@ -385,7 +385,7 @@ export function PromptInput({
           {/* Upload dropzone */}
           <div
             className={`
-              border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
+              border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors
               ${isDragOver 
                 ? 'border-primary bg-primary/10' 
                 : 'border-muted-foreground/25 hover:border-muted-foreground/50'
@@ -409,7 +409,7 @@ export function PromptInput({
               aria-label="Upload files"
             />
             
-            <Upload className={`h-8 w-8 mx-auto mb-2 ${isDragOver ? 'text-primary' : 'text-muted-foreground'}`} />
+            <Upload className={`h-6 w-6 mx-auto mb-1 ${isDragOver ? 'text-primary' : 'text-muted-foreground'}`} />
             
             <div className="space-y-1">
               <div className="text-sm font-medium">

@@ -90,9 +90,9 @@ export default function Home() {
   return (
     <div className="h-full bg-white flex flex-col">
       {/* Main Content */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 flex flex-col">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex-1 flex flex-col">
         {/* Compact Hero Section */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
             Generate Technical Specifications
           </h2>
@@ -102,8 +102,8 @@ export default function Home() {
         </div>
 
         {/* Step Progress */}
-        <div className="mb-6">
-          <div className="flex items-center justify-center gap-8 mb-6">
+        <div className="mb-4">
+          <div className="flex items-center justify-center gap-8 mb-4">
             {[
               { step: 1, label: 'API Key', icon: Key, completed: hasApiKey },
               { step: 2, label: 'AI Model', icon: Brain, completed: hasModel },
