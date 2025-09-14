@@ -54,6 +54,18 @@ export default function Home() {
   const hasPrompt = prompt.trim().length > 10
   const canStartGeneration = hasApiKey && hasModel && hasPrompt
 
+  // Debug logging for state tracking
+  console.log('Main page render state:', {
+    currentStep,
+    hasApiKey,
+    hasModel,
+    hasPrompt,
+    apiKeyStatus,
+    modelLoadStatus,
+    apiKeyValue: apiKey ? 'present' : 'missing',
+    selectedModelName: selectedModel?.name || 'none'
+  })
+
   // Check for existing session data on mount - ONLY ONCE
   useEffect(() => {
     if (hasCheckedSession) return // Don't check again if we've already checked
@@ -292,49 +304,57 @@ export default function Home() {
 
           {/* Step 4: Generation/Results */}
           {currentStep === 4 && (
-            <div className="space-y-8">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Play className="h-5 w-5" />
-                    Generating Your Specification
-                  </CardTitle>
-                  <CardDescription>
-                    AI is creating your technical specification based on your requirements.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-6">
+            <div className="flex-1 flex gap-4 min-h-0">
+              {/* Left Panel: Workflow Progress & Export */}
+              <div className="w-80 flex-shrink-0 space-y-4">
+                <Card className="h-fit">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Play className="h-4 w-4" />
+                      Generation Progress
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
                     <ComponentErrorBoundary name="WorkflowProgress">
                       <WorkflowProgress workflowState={workflowState} />
                     </ComponentErrorBoundary>
-                    
-                    <Separator />
-                    
+                  </CardContent>
+                </Card>
+
+                <Card className="h-fit">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Export Options</CardTitle>
+                    <CardDescription className="text-xs">
+                      Download your generated specification
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Button onClick={() => setShowExportDialog(true)} variant="outline" size="sm" className="w-full">
+                      <Download className="h-4 w-4 mr-2" />
+                      Export Specification
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Right Panel: Content Preview */}
+              <Card className="flex-1 min-w-0">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">
+                    {workflowState.currentPhase.charAt(0).toUpperCase() + workflowState.currentPhase.slice(1)} Preview
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="h-[calc(100vh-320px)]">
+                  <div className="h-full overflow-auto">
                     <ComponentErrorBoundary name="MarkdownPreview">
                       <MarkdownPreview
                         content={workflowState.phaseContent[workflowState.currentPhase] || '# Generating content...\n\nYour specification is being created. This will appear here once generation begins.'}
-                        title={`${workflowState.currentPhase.charAt(0).toUpperCase() + workflowState.currentPhase.slice(1)} Preview`}
+                        title=""
                         showDiagrams={true}
                         showStats={true}
                       />
                     </ComponentErrorBoundary>
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Export Options</CardTitle>
-                  <CardDescription>
-                    Download your generated specification in various formats
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button onClick={() => setShowExportDialog(true)} variant="outline" className="border-gray-300">
-                    <Download className="h-4 w-4 mr-2" />
-                    Export Specification
-                  </Button>
                 </CardContent>
               </Card>
             </div>
