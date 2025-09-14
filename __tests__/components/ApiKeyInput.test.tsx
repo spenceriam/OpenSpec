@@ -24,7 +24,7 @@ describe('ApiKeyInput Component', () => {
     render(<ApiKeyInput {...defaultProps} />)
 
     expect(screen.getByLabelText(/openrouter api key/i)).toBeInTheDocument()
-    expect(screen.getByPlaceholderText(/enter your openrouter api key/i)).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/sk-or-/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /validate key/i })).toBeInTheDocument()
     expect(screen.getByText(/your api key is stored securely/i)).toBeInTheDocument()
   })
