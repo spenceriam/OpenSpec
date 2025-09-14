@@ -93,8 +93,8 @@ export default function Home() {
     setCurrentStep(3)
   }
 
-  const handleStartOver = () => {
-    // Clear ALL session data including API key, model, prompt, and context files
+  const handleResetAndStartFresh = () => {
+    // Reset: Clear ALL session data including API key, model, prompt, and context files
     clearAPIKey()
     clearModel()
     clearPrompt()
@@ -109,7 +109,7 @@ export default function Home() {
     // Reset workflow state if needed
     setWorkflowState(mockWorkflowState)
     
-    console.log('All session data cleared - starting fresh')
+    console.log('Session reset - all data cleared, starting fresh')
   }
 
   const handleContinue = () => {
@@ -356,17 +356,17 @@ export default function Home() {
                 {contextFiles.length > 0 && <div className="text-green-400 text-sm flex items-center gap-2">✓ Context files: {contextFiles.length} file{contextFiles.length !== 1 ? 's' : ''}</div>}
               </div>
               <div className="mt-3 text-sm">
-                <strong>Continue</strong> will restore all your saved data, or <strong>Start Over</strong> will clear everything.
+                <strong>Continue</strong> will restore all your saved data, or <strong>Reset & Start Fresh</strong> will clear everything and begin anew.
               </div>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
             <Button 
               variant="outline" 
-              onClick={handleStartOver}
+              onClick={handleResetAndStartFresh}
               className="border-border text-foreground hover:bg-muted"
             >
-              Start Over
+              Reset & Start Fresh
             </Button>
             <Button 
               onClick={handleContinue}
