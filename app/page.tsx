@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { FileText, Download, Play, Key, Brain, MessageSquare, Check, X } from 'lucide-react'
 import { useAPIKeyStorage, useModelStorage } from '@/hooks/useSessionStorage'
+import { DotPattern } from '@/components/magicui/dot-pattern'
 
 // This would normally come from your workflow state management
 const mockWorkflowState = {
@@ -127,9 +128,19 @@ export default function Home() {
   }
 
   return (
-    <div className="h-full bg-background flex flex-col">
+    <div className="h-full bg-background flex flex-col relative overflow-hidden">
+      {/* Subtle Dot Pattern Background */}
+      <DotPattern 
+        className="opacity-20 fill-muted-foreground/10" 
+        width={32} 
+        height={32} 
+        cx={1} 
+        cy={1} 
+        cr={0.8}
+      />
+      
       {/* Main Content */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex-1 flex flex-col">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex-1 flex flex-col relative z-10">
         {/* Compact Hero Section */}
         <div className="text-center mb-4">
           <h2 className="text-xl font-bold text-foreground mb-1">
