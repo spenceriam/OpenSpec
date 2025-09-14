@@ -1,0 +1,34 @@
+{
+  "name": "OpenSpec - AI-Powered Specification Generation",
+  "short_name": "OpenSpec",
+  "description": "Generate comprehensive technical specifications using OpenRouter's AI models with automatic diagram generation.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#161b22",
+  "theme_color": "#1f6feb",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["developer", "productivity", "utilities"],
+  "lang": "en-US",
+  "scope": "/",
+  "shortcuts": [
+    {
+      "name": "New Spec",
+      "short_name": "New",
+      "description": "Start creating a new specification",
+      "url": "/",
+      "icons": [{ "src": "/favicon.ico", "sizes": "any" }]
+    }
+  ]
+}

@@ -45,6 +45,7 @@ export default function Home() {
   const [currentStep, setCurrentStep] = useState(1)
   const [showExportDialog, setShowExportDialog] = useState(false)
   const [showContinueDialog, setShowContinueDialog] = useState(false)
+  const [hasCheckedSession, setHasCheckedSession] = useState(false)
   const [apiKeyStatus, setApiKeyStatus] = useState<'loading' | 'success' | 'error' | null>(null)
   const [modelLoadStatus, setModelLoadStatus] = useState<'loading' | 'success' | 'error' | null>(null)
 
@@ -53,13 +54,16 @@ export default function Home() {
   const hasPrompt = prompt.trim().length > 10
   const canStartGeneration = hasApiKey && hasModel && hasPrompt
 
-  // Check for existing session data on mount
+  // Check for existing session data on mount - ONLY ONCE
   useEffect(() => {
-    const hasPromptData = prompt.trim().length > 0
-    const hasFiles = contextFiles.length > 0
-    const hasAnySessionData = hasApiKey || selectedModel || hasPromptData || hasFiles
+    if (hasCheckedSession) return // Don't check again if we've already checked
     
-    if (hasAnySessionData) {
+    const hasPromptData = prompt.trim().length > 10 // Meaningful prompt content
+    const hasFiles = contextFiles.length > 0
+    // Only show dialog if user has made meaningful progress beyond just API key + model selection
+    const hasMeaningfulProgress = (hasApiKey && hasModel && (hasPromptData || hasFiles))
+    
+    if (hasMeaningfulProgress) {
       setShowContinueDialog(true)
     }
     
@@ -76,7 +80,9 @@ export default function Home() {
       setCurrentStep(2)
       setApiKeyStatus('success')
     }
-  }, [hasApiKey, selectedModel, prompt, contextFiles])
+    
+    setHasCheckedSession(true) // Mark that we've checked the session
+  }, [hasApiKey, selectedModel, prompt, contextFiles, hasCheckedSession])
 
   const handleApiKeyValidated = (isValid: boolean, key?: string) => {
     if (isValid && key) {
@@ -105,6 +111,7 @@ export default function Home() {
     setModelLoadStatus(null)
     setCurrentStep(1)
     setShowContinueDialog(false)
+    setHasCheckedSession(true) // Mark as checked so dialog won't show again
     
     // Reset workflow state if needed
     setWorkflowState(mockWorkflowState)
@@ -114,6 +121,7 @@ export default function Home() {
 
   const handleContinue = () => {
     setShowContinueDialog(false)
+    setHasCheckedSession(true) // Mark as checked so dialog won't show again
     // Step is already set correctly in useEffect
   }
 

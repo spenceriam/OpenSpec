@@ -52,6 +52,7 @@ const DEFAULT_ACCEPTED_TYPES = [
   'image/webp'
 ]
 
+// Updated component with wider layout and simplified file upload
 export function PromptInput({
   prompt,
   onPromptChange,
@@ -317,20 +318,20 @@ export function PromptInput({
   const remainingFiles = maxFiles - contextFiles.length
 
   return (
-    <Card className={`prompt-input max-w-5xl mx-auto ${className}`}>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">Feature Description & Context</CardTitle>
-        <CardDescription className="text-xs">
+    <Card className={`prompt-input ${className}`} style={{ width: '780px', margin: '0 auto' }}>
+      <CardHeader className="pb-4">
+        <CardTitle className="text-lg">Feature Description & Context</CardTitle>
+        <CardDescription className="text-sm">
           Describe what you want to build and optionally upload context files.
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-3 pt-0">
+      <CardContent className="space-y-4 pt-0">
         {/* Text input */}
-        <div className="space-y-1">
+        <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label htmlFor="feature-description" className="text-xs font-medium">Feature Description</label>
-            <div className={`text-xs ${isPromptValid ? 'text-muted-foreground' : 'text-destructive'}`}>
+            <label htmlFor="feature-description" className="text-sm font-medium">Feature Description</label>
+            <div className={`text-sm ${isPromptValid ? 'text-muted-foreground' : 'text-destructive'}`}>
               {prompt.length}/{maxLength} characters 
               {prompt.length < minLength && ` (minimum ${minLength})`}
             </div>
@@ -343,7 +344,7 @@ export function PromptInput({
             onChange={(e) => onPromptChange(e.target.value)}
             onPaste={handlePaste}
             placeholder={placeholder}
-            className="min-h-24 max-h-48 resize-none overflow-y-auto text-sm"
+            className="min-h-32 max-h-64 resize-none overflow-y-auto text-base"
             maxLength={maxLength}
           />
           
@@ -371,10 +372,10 @@ export function PromptInput({
         </div>
 
         {/* File upload area */}
-        <div className="space-y-2">
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <label htmlFor="context-files" className="text-xs font-medium">Context Files (Optional)</label>
-            <div className="text-xs text-muted-foreground">
+            <label htmlFor="context-files" className="text-sm font-medium">Context Files (Optional)</label>
+            <div className="text-sm text-muted-foreground">
               {contextFiles.length}/{maxFiles} files
               {contextFiles.length > 0 && (
                 <span className="ml-1">• {formatFileSize(totalFileSize)}</span>
@@ -382,21 +383,22 @@ export function PromptInput({
             </div>
           </div>
 
-          {/* Upload dropzone */}
-          <div
-            className={`
-              border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors
-              ${isDragOver 
-                ? 'border-primary bg-primary/10' 
-                : 'border-muted-foreground/25 hover:border-muted-foreground/50'
-              }
-              ${remainingFiles === 0 ? 'opacity-50 pointer-events-none' : ''}
-            `}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-          >
+          {/* Upload button */}
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={remainingFiles === 0}
+              className="gap-2"
+            >
+              <Upload className="h-4 w-4" />
+              Add Files
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              Code, docs, images (max {maxFileSize}MB each)
+            </span>
+            
             <input
               id="context-files"
               ref={fileInputRef}
@@ -408,63 +410,39 @@ export function PromptInput({
               disabled={remainingFiles === 0}
               aria-label="Upload files"
             />
-            
-            <Upload className={`h-5 w-5 mx-auto ${isDragOver ? 'text-primary' : 'text-muted-foreground'}`} />
-            
-            <div className="space-y-0">
-              <div className="text-xs font-medium">
-                {isDragOver ? 'Drop files to upload' : 'Click to upload or drag and drop'}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                Code, docs, images (max {maxFileSize}MB each)
-              </div>
-            </div>
           </div>
 
           {/* File list */}
           {contextFiles.length > 0 && (
-            <div className="space-y-1">
-              <div className="text-xs font-medium">Uploaded Files</div>
+            <div className="space-y-2">
+              <div className="text-sm font-medium">Uploaded Files</div>
               <div className="space-y-1">
                 {contextFiles.map((file) => (
-                  <div key={file.id} className="flex items-center gap-2 p-2 border rounded-lg">
+                  <div key={file.id} className="flex items-center gap-3 py-1">
                     <div className="flex-shrink-0">
                       {getFileIcon(file)}
                     </div>
                     
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs font-medium truncate">{file.name}</span>
-                        <Badge variant="secondary" className="text-xs px-1">
-                          {formatFileSize(file.size)}
-                        </Badge>
-                      </div>
+                    <div className="flex-1 min-w-0 flex items-center gap-2">
+                      <span className="text-sm truncate">{file.name}</span>
+                      <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
+                        {formatFileSize(file.size)}
+                      </Badge>
                       
                       {uploadProgress[file.id] !== undefined && uploadProgress[file.id] < 100 && (
-                        <Progress value={uploadProgress[file.id]} className="h-1 mt-1" />
+                        <Progress value={uploadProgress[file.id]} className="h-1 w-20" />
                       )}
                     </div>
                     
-                    <div className="flex items-center gap-0">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => previewFile(file)}
-                        className="h-6 w-6 p-0"
-                        aria-label={`Preview ${file.name}`}
-                      >
-                        <Eye className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeFile(file.id)}
-                        className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                        aria-label={`Remove ${file.name}`}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeFile(file.id)}
+                      className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                      aria-label={`Remove ${file.name}`}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
                   </div>
                 ))}
               </div>
