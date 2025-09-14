@@ -44,22 +44,29 @@ export function ApiKeyInput({
 
   // Test API key validity
   const testApiKey = useCallback(async (keyToTest: string) => {
+    console.log('testApiKey called with key:', keyToTest ? 'key present' : 'no key')
+    
     if (!keyToTest.trim()) {
+      console.log('testApiKey: No key provided')
       setTestResult({ isValid: false, error: 'API key is required' })
       return false
     }
 
+    console.log('testApiKey: Starting validation')
     setIsTestingKey(true)
     setTestResult(null)
     onLoadingChange?.(true)
 
     try {
+      console.log('testApiKey: Creating OpenRouterClient')
       const client = new OpenRouterClient(keyToTest)
       
-      // Test connection
+      console.log('testApiKey: Calling testConnection')
       const isValid = await client.testConnection()
+      console.log('testApiKey: testConnection result:', isValid)
       
       if (isValid) {
+        console.log('testApiKey: Success - API key is valid')
         setTestResult({
           isValid: true
         })
@@ -68,6 +75,7 @@ export function ApiKeyInput({
         onApiKeyValidated?.(true, keyToTest)
         return true
       } else {
+        console.log('testApiKey: Failed - API key is invalid')
         setTestResult({
           isValid: false,
           error: 'Invalid API key'
@@ -78,6 +86,7 @@ export function ApiKeyInput({
         return false
       }
     } catch (error) {
+      console.log('testApiKey: Caught error:', error)
       const errorMessage = error instanceof Error ? error.message : 'Failed to test API key'
       setTestResult({
         isValid: false,
@@ -86,11 +95,12 @@ export function ApiKeyInput({
       onApiKeyValidated?.(false)
       return false
     } finally {
+      console.log('testApiKey: Cleanup - setting loading false')
       setIsTestingKey(false)
       setHasTestedCurrentKey(true)
       onLoadingChange?.(false)
     }
-  }, [onApiKeyValidated])
+  }, [onApiKeyValidated, setAPIKey, clearAPIKey, onLoadingChange])
 
   // Handle input change
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -142,6 +152,8 @@ export function ApiKeyInput({
   // Handle manual test
   const handleTestKey = useCallback(() => {
     const keyToTest = inputValue.trim() || apiKey
+    console.log('handleTestKey called with:', { keyToTest: keyToTest ? 'key present' : 'no key', inputValue, apiKey: apiKey ? 'stored key present' : 'no stored key' })
+    
     if (!keyToTest) {
       setTestResult({ isValid: false, error: 'Please enter an API key' })
       onApiKeyValidated?.(false)
@@ -158,8 +170,9 @@ export function ApiKeyInput({
       return
     }
     
+    console.log('Calling testApiKey with key')
     testApiKey(keyToTest)
-  }, [inputValue, apiKey, testApiKey])
+  }, [inputValue, apiKey, testApiKey, onApiKeyValidated])
 
   // Handle key press
   const handleKeyPress = (e: React.KeyboardEvent) => {
