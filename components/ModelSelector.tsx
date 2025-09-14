@@ -61,31 +61,43 @@ export function ModelSelector({
 
   // Fetch available models
   const fetchModels = useCallback(async () => {
+    console.log('ModelSelector fetchModels: Starting with API key:', apiKey ? 'present' : 'missing')
+    
     if (!apiKey) {
+      console.log('ModelSelector fetchModels: No API key, setting error')
       setError('API key required to load models')
       return
     }
 
+    console.log('ModelSelector fetchModels: Setting loading state')
     setIsLoading(true)
     setError(null)
     onLoadingChange?.(true)
 
     try {
+      console.log('ModelSelector fetchModels: Creating OpenRouter client')
       const client = new OpenRouterClient(apiKey)
+      
+      console.log('ModelSelector fetchModels: Calling listModels')
       const fetchedModels = await client.listModels()
+      console.log('ModelSelector fetchModels: Received', fetchedModels?.length || 0, 'models')
       
       if (fetchedModels.length === 0) {
+        console.log('ModelSelector fetchModels: No models returned, setting error')
         setError('No models available with current API key')
         onError?.()
       } else {
+        console.log('ModelSelector fetchModels: Success, setting models')
         setModels(fetchedModels)
       }
     } catch (err) {
+      console.log('ModelSelector fetchModels: Error occurred:', err)
       const errorMessage = err instanceof Error ? err.message : 'Failed to load models'
       setError(errorMessage)
       onError?.()
       console.error('Model loading error:', err)
     } finally {
+      console.log('ModelSelector fetchModels: Cleanup, setting loading false')
       setIsLoading(false)
       onLoadingChange?.(false)
     }
@@ -93,9 +105,13 @@ export function ModelSelector({
 
   // Load models when component mounts or API key changes
   useEffect(() => {
+    console.log('ModelSelector useEffect: API key changed, apiKey:', apiKey ? 'present' : 'missing')
+    
     if (apiKey) {
+      console.log('ModelSelector useEffect: API key present, calling fetchModels')
       fetchModels()
     } else {
+      console.log('ModelSelector useEffect: No API key, clearing models')
       setModels([])
       setError(null)
     }
@@ -263,8 +279,8 @@ export function ModelSelector({
       <div
         key={model.id}
         onClick={() => handleModelSelect(model)}
-        className={`flex items-start gap-3 p-3 cursor-pointer hover:bg-muted/50 transition-colors ${
-          isSelected ? 'bg-primary/10 border-l-2 border-primary' : ''
+        className={`flex items-start gap-3 p-3 cursor-pointer hover:bg-muted/30 transition-colors ${
+          isSelected ? 'bg-primary/20 border-l-2 border-primary' : ''
         }`}
       >
         <Check
@@ -276,9 +292,9 @@ export function ModelSelector({
         <div className="flex-1 min-w-0 space-y-1">
           {/* Model name and badges */}
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium text-sm text-gray-900">{model.name}</span>
+            <span className="font-medium text-sm text-foreground">{model.name}</span>
             {modelIsFree && (
-              <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 border-green-300">
+              <Badge variant="secondary" className="text-xs bg-green-900/20 text-green-400 border-green-700">
                 Free
               </Badge>
             )}
@@ -289,7 +305,7 @@ export function ModelSelector({
               </Badge>
             )}
             {hasFileSupport && (
-              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-300">
+              <Badge variant="outline" className="text-xs bg-blue-900/20 text-blue-400 border-blue-700">
                 Files
               </Badge>
             )}
@@ -313,7 +329,7 @@ export function ModelSelector({
           
           {/* Description if there's space and it exists */}
           {model.description && (
-            <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+            <p className="text-xs text-muted-foreground/80 line-clamp-2 mt-1">
               {model.description}
             </p>
           )}
@@ -340,10 +356,10 @@ export function ModelSelector({
   return (
     <Card className={`model-selector max-w-5xl ${className}`}>
       <CardHeader className="pb-4">
-        <CardTitle className="text-base">Select AI Model</CardTitle>
+        <CardTitle className="text-base text-foreground">Select AI Model</CardTitle>
         <CardDescription className="text-sm">
           {selectedModel ? (
-            <span className="text-green-600 font-medium">Selected: {selectedModel.name}</span>
+            <span className="text-green-400 font-medium">Selected: {selectedModel.name}</span>
           ) : (
             `Choose from ${models.length} available models`
           )}
@@ -351,6 +367,16 @@ export function ModelSelector({
       </CardHeader>
 
       <CardContent className="space-y-3">
+        {/* Loading state */}
+        {isLoading && models.length === 0 && (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center space-y-3">
+              <Loader2 className="h-6 w-6 mx-auto animate-spin text-primary" />
+              <div className="text-sm text-muted-foreground">Loading available models...</div>
+            </div>
+          </div>
+        )}
+
         {/* Search and filters - always visible when we have models */}
         {models.length > 0 && (
           <div className="space-y-3">
@@ -437,7 +463,7 @@ export function ModelSelector({
                     </Button>
                   </div>
                 ) : (
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-xs text-muted-foreground/70">
                     No models found matching your criteria.
                   </div>
                 )}
@@ -452,14 +478,14 @@ export function ModelSelector({
 
         {/* Model statistics */}
         {models.length > 0 && (
-          <div className="text-xs text-muted-foreground flex items-center justify-between">
+          <div className="text-xs text-muted-foreground/70 flex items-center justify-between">
             <span>
               Showing {filteredAndSortedModels.length} of {models.length} models
               {searchQuery && ` matching "${searchQuery}"`}
               {showFreeOnly && ' (free only)'}
             </span>
             {showFreeOnly && (
-              <span className="text-green-600 font-medium">
+              <span className="text-green-400 font-medium">
                 {filteredAndSortedModels.filter(isFreeModel).length} free models
               </span>
             )}
