@@ -106,6 +106,7 @@ export function ModelSelector({
   // Load models when component mounts or API key changes
   useEffect(() => {
     console.log('ModelSelector useEffect: API key changed, apiKey:', apiKey ? 'present' : 'missing')
+    console.log('ModelSelector useEffect: Current component state - models:', models.length, 'isLoading:', isLoading, 'error:', error)
     
     if (apiKey) {
       console.log('ModelSelector useEffect: API key present, calling fetchModels')
@@ -339,6 +340,7 @@ export function ModelSelector({
   }
 
   if (!apiKey) {
+    console.log('ModelSelector rendering: No API key provided')
     return (
       <Card className={`model-selector ${className}`}>
         <CardContent className="pt-6">
@@ -352,6 +354,8 @@ export function ModelSelector({
       </Card>
     )
   }
+
+  console.log('ModelSelector rendering: API key present, models:', models.length, 'loading:', isLoading, 'error:', error)
 
   return (
     <Card className={`model-selector max-w-5xl ${className}`}>
