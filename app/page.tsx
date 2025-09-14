@@ -97,6 +97,7 @@ export default function Home() {
   }, [hasApiKey, selectedModel, prompt, contextFiles, hasCheckedSession])
 
   const handleApiKeyValidated = (isValid: boolean, key?: string) => {
+    console.log('handleApiKeyValidated called:', { isValid, keyProvided: !!key })
     if (isValid && key) {
       setApiKeyStatus('success')
       setCurrentStep(2)

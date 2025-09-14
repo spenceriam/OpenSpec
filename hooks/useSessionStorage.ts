@@ -330,13 +330,14 @@ export function useAPIKeyStorage(): UseSessionStorageReturn & {
 
   // Check for stored validation status
   useEffect(() => {
-    if (typeof window !== 'undefined' && sessionStorage.value) {
+    if (typeof window !== 'undefined') {
       const testStatus = window.sessionStorage.getItem('openspec-api-key-tested')
       setIsAPITested(testStatus === 'true')
     }
   }, [sessionStorage.value])
 
   const setAPIKey = useCallback((key: string) => {
+    console.log('setAPIKey called with:', key ? 'key provided' : 'no key')
     if (!key.trim()) {
       sessionStorage.setValue(null)
       if (typeof window !== 'undefined') {
@@ -351,6 +352,7 @@ export function useAPIKeyStorage(): UseSessionStorageReturn & {
       window.sessionStorage.setItem('openspec-api-key-tested', 'true')
     }
     setIsAPITested(true)
+    console.log('setAPIKey completed, isAPITested set to true')
   }, [sessionStorage])
 
   const clearAPIKey = useCallback(() => {
