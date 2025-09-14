@@ -5,9 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { 
@@ -230,20 +228,21 @@ export function ModelSelector({
     const modelIsFree = isFreeModel(model)
 
     return (
-      <CommandItem
+      <div
         key={model.id}
-        value={model.id}
-        onSelect={() => handleModelSelect(model)}
-        className="flex flex-col items-start gap-2 p-3 cursor-pointer hover:bg-muted"
+        onClick={() => handleModelSelect(model)}
+        className={`flex flex-col gap-2 p-3 cursor-pointer hover:bg-muted/50 transition-colors ${
+          isSelected ? 'bg-primary/10 border-primary' : ''
+        }`}
       >
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center gap-2">
             <Check
-              className={`h-4 w-4 ${
+              className={`h-4 w-4 text-primary ${
                 isSelected ? 'opacity-100' : 'opacity-0'
               }`}
             />
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="font-medium">{model.name}</span>
               {isPopular && (
                 <Badge variant="outline" className="text-xs">
@@ -274,7 +273,7 @@ export function ModelSelector({
           )}
           {renderPricingInfo(model)}
         </div>
-      </CommandItem>
+      </div>
     )
   }
 
@@ -323,119 +322,124 @@ export function ModelSelector({
           </div>
         )}
 
-        {/* Model selector */}
-        <Popover open={isOpen} onOpenChange={setIsOpen}>
-          <PopoverTrigger asChild>
-            <Button 
-              variant="outline" 
-              className="w-full justify-between"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Loading models...
-                </>
-              ) : selectedModel ? (
-                selectedModel.name
-              ) : (
-                'Select a model...'
-              )}
-              <ChevronDown className="h-4 w-4 opacity-50" />
-            </Button>
-          </PopoverTrigger>
+        {/* Model selector button */}
+        <Button 
+          variant="outline" 
+          className="w-full justify-between"
+          disabled={isLoading}
+          onClick={() => setIsOpen(!isOpen)}
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Loading models...
+            </>
+          ) : selectedModel ? (
+            selectedModel.name
+          ) : (
+            'Select a model...'
+          )}
+          <ChevronDown className={`h-4 w-4 opacity-50 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </Button>
 
-          <PopoverContent className="w-[500px] p-0" align="start">
-            <Command>
-              <div className="border-b p-3 space-y-3">
-                {/* Search Box */}
-                <CommandInput 
-                  placeholder="Search models..." 
-                  value={searchQuery}
-                  onValueChange={setSearchQuery}
-                  className="border rounded-md"
-                />
-                
-                {/* Filters Row */}
-                <div className="flex gap-2 flex-wrap">
-                  {/* Sort Dropdown */}
-                  <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-                    <SelectTrigger className="w-[140px]">
-                      <SelectValue placeholder="Sort by" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="popularity">Most Popular</SelectItem>
-                      <SelectItem value="latest">Latest</SelectItem>
-                      <SelectItem value="name-az">Name: A-Z</SelectItem>
-                      <SelectItem value="name-za">Name: Z-A</SelectItem>
-                      <SelectItem value="cost-low">Cost: $ → $$$</SelectItem>
-                      <SelectItem value="cost-high">Cost: $$$ → $</SelectItem>
-                    </SelectContent>
-                  </Select>
+        {/* Inline search and filters - always visible when we have models */}
+        {models.length > 0 && (
+          <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
+            {/* Search Box */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Search models..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            
+            {/* Filters Row */}
+            <div className="flex gap-2 flex-wrap items-center">
+              {/* Sort Dropdown */}
+              <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="popularity">Most Popular</SelectItem>
+                  <SelectItem value="latest">Latest</SelectItem>
+                  <SelectItem value="name-az">Name: A-Z</SelectItem>
+                  <SelectItem value="name-za">Name: Z-A</SelectItem>
+                  <SelectItem value="cost-low">Cost: $ → $$$</SelectItem>
+                  <SelectItem value="cost-high">Cost: $$$ → $</SelectItem>
+                </SelectContent>
+              </Select>
 
-                  {/* Category Filter */}
-                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                    <SelectTrigger className="w-[120px]">
-                      <div className="flex items-center gap-1">
-                        <Filter className="h-3 w-3" />
-                        <SelectValue placeholder="Category" />
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Categories</SelectItem>
-                      {Object.keys(modelCategories).map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {category} ({modelCategories[category].length})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  {/* Free Models Checkbox */}
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="free-only" 
-                      checked={showFreeOnly}
-                      onCheckedChange={setShowFreeOnly}
-                    />
-                    <label 
-                      htmlFor="free-only" 
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                      Free models only
-                    </label>
+              {/* Category Filter */}
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-[120px]">
+                  <div className="flex items-center gap-1">
+                    <Filter className="h-3 w-3" />
+                    <SelectValue placeholder="Category" />
                   </div>
-                </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {Object.keys(modelCategories).map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category} ({modelCategories[category].length})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Free Models Checkbox */}
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="free-only" 
+                  checked={showFreeOnly}
+                  onCheckedChange={setShowFreeOnly}
+                />
+                <label 
+                  htmlFor="free-only" 
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Free models only
+                </label>
               </div>
+            </div>
+          </div>
+        )}
 
-              <CommandList className="max-h-96">
-                <CommandEmpty>
-                  {error ? (
-                    <div className="text-center py-4">
-                      <AlertCircle className="h-4 w-4 mx-auto mb-2 text-destructive" />
-                      <div className="text-sm text-destructive">{error}</div>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="mt-2"
-                        onClick={fetchModels}
-                        disabled={isLoading}
-                      >
-                        {isLoading ? 'Retrying...' : 'Retry'}
-                      </Button>
-                    </div>
-                  ) : (
-                    'No models found matching your criteria.'
-                  )}
-                </CommandEmpty>
-
-                <CommandGroup>
-                  {filteredAndSortedModels.map(renderModelItem)}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
+        {/* Model list - shown when expanded */}
+        {isOpen && models.length > 0 && (
+          <div className="border rounded-lg max-h-96 overflow-y-auto">
+            {filteredAndSortedModels.length === 0 ? (
+              <div className="text-center py-8">
+                {error ? (
+                  <div>
+                    <AlertCircle className="h-6 w-6 mx-auto mb-2 text-destructive" />
+                    <div className="text-sm text-destructive mb-3">{error}</div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={fetchModels}
+                      disabled={isLoading}
+                    >
+                      {isLoading ? 'Retrying...' : 'Retry'}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="text-muted-foreground">
+                    No models found matching your criteria.
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="divide-y">
+                {filteredAndSortedModels.map(renderModelItem)}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Model statistics */}
         {models.length > 0 && (
