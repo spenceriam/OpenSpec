@@ -98,7 +98,7 @@ export function ModelSelector({
       setModels([])
       setError(null)
     }
-  }, [apiKey, fetchModels])
+  }, [apiKey]) // Removed fetchModels from dependency array to prevent infinite loop
 
   // Helper function to check if model is free
   const isFreeModel = (model: OpenRouterModel): boolean => {
