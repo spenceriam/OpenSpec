@@ -160,6 +160,14 @@ export default function Home() {
   }
 
   const handleGenerate = async () => {
+    console.log('=== HANDLE GENERATE DEBUG ===', {
+      prompt: prompt || 'EMPTY',
+      promptLength: prompt.length,
+      contextFiles: contextFiles.length,
+      contextFileNames: contextFiles.map(f => f.name),
+      hasApiKey: !!apiKey,
+      hasModel: !!selectedModel
+    })
     
     // Gentle rate limiting: prevent rapid double-clicks (minimum 2 seconds between generations)
     const now = Date.now()
@@ -177,36 +185,27 @@ export default function Home() {
     const promptLines = prompt.trim().split('\n')
     const featureName = promptLines[0]?.replace(/^#+\s*/, '').trim() || 'Technical Specification'
     
-    // Set up the workflow with current data using a Promise to ensure state is set
-    await new Promise<void>((resolve) => {
-      workflow.setFeatureName(featureName)
-      workflow.setDescription(prompt)
-      
-      // Add context files to workflow
-      workflow.clearContext()
-      contextFiles.forEach(file => {
-        workflow.addContextFile({
-          id: file.id,
-          name: file.name,
-          type: file.type as any,
-          content: file.content,
-          size: file.size,
-          lastModified: file.lastModified || Date.now(),
-          mimeType: file.mimeType || 'text/plain'
-        })
-      })
-      
-      // Use requestAnimationFrame to ensure React state updates are flushed
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          resolve()
-        })
-      })
+    // FUNDAMENTAL FIX: Pass data directly to generation instead of relying on async state
+    console.log('=== DIRECT GENERATION APPROACH ===', {
+      featureName,
+      promptLength: prompt.length,
+      contextFilesCount: contextFiles.length
     })
     
-    // Start generation for the requirements phase
+    // Convert context files to workflow format
+    const workflowContextFiles = contextFiles.map(file => ({
+      id: file.id,
+      name: file.name,
+      type: file.type as any,
+      content: file.content,
+      size: file.size,
+      lastModified: file.lastModified || Date.now(),
+      mimeType: file.mimeType || 'text/plain'
+    }))
+    
+    // Start generation for the requirements phase with direct data
     try {
-      await workflow.generateCurrentPhase()
+      await workflow.generateWithData(featureName, prompt, workflowContextFiles)
     } catch (error) {
       // Error handling is managed by the workflow hook
     }

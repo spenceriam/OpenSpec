@@ -59,6 +59,7 @@ export interface UseSpecWorkflowReturn {
   
   // Generation actions
   generateCurrentPhase: () => Promise<void>
+  generateWithData: (featureName: string, description: string, contextFiles: ContextFile[]) => Promise<void>
   refineCurrentPhase: (feedback: string) => Promise<void>
   
   // Approval and progression
@@ -76,6 +77,7 @@ export interface UseSpecWorkflowReturn {
   clearError: () => void
   exportData: () => any
   importData: (data: any) => boolean
+  forceSync: () => void
   
   // Test-compatible API aliases and additional methods
   generateContent: (phase: WorkflowPhase, prompt: string, model: string) => Promise<void>
@@ -118,7 +120,8 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
   const {
     value: state,
     setValue: setState,
-    error: storageError
+    error: storageError,
+    forceSync
   } = useLocalStorage('openspec-workflow-state', {
     defaultValue: DEFAULT_SPEC_STATE,
     autoSave,
@@ -160,20 +163,53 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
 
   // Basic setters
   const setFeatureName = useCallback((name: string) => {
-    setState(prev => ({ ...prev, featureName: name.trim() }))
-  }, [setState])
+    console.log('=== WORKFLOW setFeatureName CALLED ===', {
+      name: name.trim(),
+      currentState: state.featureName
+    })
+    setState(prev => {
+      console.log('=== WORKFLOW setState for featureName ===', {
+        prevState: prev.featureName,
+        newState: name.trim()
+      })
+      return { ...prev, featureName: name.trim() }
+    })
+  }, [setState, state.featureName])
 
   const setDescription = useCallback((description: string) => {
-    setState(prev => ({ ...prev, description }))
-  }, [setState])
+    console.log('=== WORKFLOW setDescription CALLED ===', {
+      description: description.substring(0, 100) + '...',
+      currentState: state.description?.substring(0, 100) + '...' || 'EMPTY'
+    })
+    setState(prev => {
+      console.log('=== WORKFLOW setState for description ===', {
+        prevState: prev.description?.substring(0, 50) + '...' || 'EMPTY',
+        newState: description.substring(0, 50) + '...'
+      })
+      return { ...prev, description }
+    })
+  }, [setState, state.description])
 
   // Context file management
   const addContextFile = useCallback((file: ContextFile) => {
-    setState(prev => ({
-      ...prev,
-      context: [...prev.context.filter(f => f.id !== file.id), file]
-    }))
-  }, [setState])
+    console.log('=== WORKFLOW addContextFile CALLED ===', {
+      fileName: file.name,
+      fileType: file.type,
+      currentContextLength: state.context.length
+    })
+    setState(prev => {
+      const newContext = [...prev.context.filter(f => f.id !== file.id), file]
+      console.log('=== WORKFLOW setState for addContextFile ===', {
+        prevContextLength: prev.context.length,
+        newContextLength: newContext.length,
+        fileAdded: file.name
+      })
+      return {
+        ...prev,
+        context: newContext
+      }
+    })
+  }, [setState, state.context.length])
 
   const removeContextFile = useCallback((fileId: string) => {
     setState(prev => ({
@@ -183,8 +219,17 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
   }, [setState])
 
   const clearContext = useCallback(() => {
-    setState(prev => ({ ...prev, context: [] }))
-  }, [setState])
+    console.log('=== WORKFLOW clearContext CALLED ===', {
+      currentContextLength: state.context.length
+    })
+    setState(prev => {
+      console.log('=== WORKFLOW setState for clearContext ===', {
+        prevContextLength: prev.context.length,
+        newContextLength: 0
+      })
+      return { ...prev, context: [] }
+    })
+  }, [setState, state.context.length])
 
   // Content management
   const updatePhaseContent = useCallback((phase: WorkflowPhase, content: string) => {
@@ -227,13 +272,18 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
 
       // Log workflow state for debugging
       if (process.env.NODE_ENV === 'development') {
-        console.log('Workflow generation state:', {
+        console.log('=== WORKFLOW GENERATION DEBUG ===', {
           phase: state.phase,
           featureName: state.featureName || 'EMPTY',
-          description: state.description ? `${state.description.length} chars` : 'EMPTY',
+          description: state.description || 'EMPTY', 
+          descriptionLength: state.description?.length || 0,
           contextFiles: state.context.length,
-          contextFileNames: state.context.map(f => f.name)
+          contextFileNames: state.context.map(f => f.name),
+          contextFileTypes: state.context.map(f => f.type),
+          userPrompt: userPrompt.substring(0, 300) + '...',
+          fullState: { ...state }
         })
+        console.log('=== FULL USER PROMPT ===', userPrompt)
       }
 
       const response = await fetch('/api/generate', {
@@ -265,6 +315,93 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
         ...prev,
         [state.phase]: content,
         isGenerating: false
+      }))
+
+      onGenerationComplete?.(state.phase, content)
+
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error('Unknown error')
+      setState(prev => ({
+        ...prev,
+        isGenerating: false,
+        error: err.message
+      }))
+      onError?.(err, state.phase)
+    }
+  }, [hasValidKey, apiKey, state, setState, onGenerationStart, onGenerationComplete, onError, selectedModel])
+
+  // Direct generation with passed data (bypasses state issues)
+  const generateWithData = useCallback(async (featureName: string, description: string, contextFiles: ContextFile[]) => {
+    if (!hasValidKey || !apiKey) {
+      const error = new Error('Valid OpenRouter API key is required')
+      setState(prev => ({ ...prev, error: error.message }))
+      onError?.(error, state.phase)
+      return
+    }
+
+    setState(prev => ({ 
+      ...prev, 
+      isGenerating: true, 
+      error: null 
+    }))
+
+    onGenerationStart?.(state.phase)
+
+    try {
+      // Build user prompt directly with passed data
+      const directState = {
+        featureName,
+        description,
+        context: contextFiles,
+        phase: state.phase,
+        requirements: state.requirements,
+        design: state.design,
+        tasks: state.tasks
+      }
+
+      const systemPrompt = getSystemPromptForPhase(state.phase)
+      const userPrompt = buildUserPrompt(directState as SpecState)
+
+      console.log('=== DIRECT GENERATION ===', {
+        featureName,
+        description: description.substring(0, 100) + '...',
+        contextFiles: contextFiles.length,
+        userPrompt: userPrompt.substring(0, 300) + '...',
+        phase: state.phase
+      })
+
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          apiKey,
+          model: selectedModel?.id || 'anthropic/claude-3.5-sonnet',
+          systemPrompt,
+          userPrompt,
+          contextFiles,
+          options: {
+            temperature: 0.3,
+            max_tokens: 8192
+          }
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error?.message || 'Generation failed')
+      }
+
+      const { content } = await response.json()
+
+      setState(prev => ({
+        ...prev,
+        [state.phase]: content,
+        isGenerating: false,
+        featureName, // Also update the state for persistence
+        description,
+        context: contextFiles
       }))
 
       onGenerationComplete?.(state.phase, content)
@@ -572,6 +709,7 @@ Please update the ${state.phase} document based on this feedback while maintaini
     
     // Generation actions
     generateCurrentPhase,
+    generateWithData,
     refineCurrentPhase,
     
     // Approval and progression
@@ -589,6 +727,7 @@ Please update the ${state.phase} document based on this feedback while maintaini
     clearError,
     exportData,
     importData,
+    forceSync,
     
     // Test-compatible API aliases and additional methods
     generateContent,
