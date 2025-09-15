@@ -87,7 +87,7 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#000000" />
       </head>
-      <body className={`${inter.className} antialiased h-screen bg-background overflow-hidden`} suppressHydrationWarnings>
+      <body className={`${inter.className} antialiased h-screen bg-background overflow-hidden`}>
         <ErrorBoundary>
           <div className="relative flex h-screen flex-col">
             <Header className="flex-shrink-0 z-50 w-full" />
