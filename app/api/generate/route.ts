@@ -87,6 +87,11 @@ function clampPrompts(
   contextLimitTokens: number = 32768, 
   maxOutputTokens: number = 8192
 ): { system: string; user: string; estimated: number; clamped: boolean } {
+  // Validate inputs
+  if (typeof systemPrompt !== 'string' || typeof userPrompt !== 'string') {
+    throw new Error('System and user prompts must be strings')
+  }
+  
   // Clean binary content first
   const cleanSystem = stripBinaryContent(systemPrompt)
   const cleanUser = stripBinaryContent(userPrompt)
@@ -210,39 +215,39 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate required fields
+    // Validate required fields with proper typing
     const { apiKey, model, systemPrompt, userPrompt, options } = body as Record<string, unknown>
 
-    if (!apiKey) {
+    if (!apiKey || typeof apiKey !== 'string') {
       return NextResponse.json(
         {
           error: {
             code: 'MISSING_API_KEY',
-            message: 'OpenRouter API key is required'
+            message: 'OpenRouter API key is required and must be a string'
           }
         },
         { status: 400 }
       )
     }
 
-    if (!model) {
+    if (!model || typeof model !== 'string') {
       return NextResponse.json(
         {
           error: {
             code: 'MISSING_MODEL',
-            message: 'Model selection is required'
+            message: 'Model selection is required and must be a string'
           }
         },
         { status: 400 }
       )
     }
 
-    if (!systemPrompt || !userPrompt) {
+    if (!systemPrompt || typeof systemPrompt !== 'string' || !userPrompt || typeof userPrompt !== 'string') {
       return NextResponse.json(
         {
           error: {
             code: 'MISSING_PROMPTS',
-            message: 'Both system and user prompts are required'
+            message: 'Both system and user prompts are required and must be strings'
           }
         },
         { status: 400 }
@@ -254,7 +259,17 @@ export async function POST(request: NextRequest) {
 
     // Apply server-side token clamping with conservative context limit
     const assumedContextLimit = 32768 // Conservative limit that works across most models
-    const maxOutput = options?.max_tokens ?? 8192
+    const maxOutput = (options as any)?.max_tokens ?? 8192
+    
+    console.log('=== BEFORE CLAMPING ===', {
+      model,
+      systemPromptType: typeof systemPrompt,
+      userPromptType: typeof userPrompt,
+      systemPromptLength: systemPrompt.length,
+      userPromptLength: userPrompt.length,
+      apiKeyLength: apiKey.length
+    })
+    
     const clamped = clampPrompts(systemPrompt, userPrompt, assumedContextLimit, maxOutput)
     
     console.log('=== SERVER CLAMPING APPLIED ===', {
@@ -266,6 +281,13 @@ export async function POST(request: NextRequest) {
     })
 
     // Generate completion with clamped prompts and empty contextFiles to avoid duplication
+    console.log('=== CALLING OPENROUTER API ===', {
+      model,
+      systemPromptLength: clamped.system.length,
+      userPromptLength: clamped.user.length,
+      options: { ...options, max_tokens: maxOutput }
+    })
+    
     const completion = await client.generateCompletion(
       model,
       clamped.system,
