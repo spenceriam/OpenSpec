@@ -409,6 +409,14 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
         }
       }
 
+      console.log('=== SENDING TO API ===', {
+        url: '/api/generate',
+        modelId: selectedModel?.id || 'anthropic/claude-3.5-sonnet',
+        systemPromptLength: systemPrompt.length,
+        userPromptLength: userPrompt.length,
+        contextFilesCount: contextFiles.length
+      })
+      
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: {
@@ -427,12 +435,46 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
         })
       })
 
+      console.log('=== API RESPONSE STATUS ===', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error?.message || 'Generation failed')
+        const errorText = await response.text()
+        console.error('=== API ERROR RESPONSE ===', errorText)
+        let errorData
+        try {
+          errorData = JSON.parse(errorText)
+        } catch {
+          errorData = { error: { message: errorText } }
+        }
+        throw new Error(errorData.error?.message || `API Error: ${response.status} ${response.statusText}`)
       }
 
-      const { content } = await response.json()
+      const responseText = await response.text()
+      console.log('=== RAW API RESPONSE ===', {
+        responseLength: responseText.length,
+        firstChars: responseText.substring(0, 200)
+      })
+      
+      let responseData
+      try {
+        responseData = JSON.parse(responseText)
+      } catch (error) {
+        console.error('=== JSON PARSE ERROR ===', error, responseText)
+        throw new Error('Invalid JSON response from API')
+      }
+      
+      console.log('=== PARSED API RESPONSE ===', {
+        hasContent: !!responseData.content,
+        contentLength: responseData.content?.length || 0,
+        responseKeys: Object.keys(responseData)
+      })
+      
+      const { content } = responseData
 
       setState(prev => ({
         ...prev,

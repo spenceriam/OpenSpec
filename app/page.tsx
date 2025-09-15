@@ -192,8 +192,20 @@ export default function Home() {
       contextFilesCount: contextFiles.length
     })
     
-    // Convert context files to workflow format
-    const workflowContextFiles = contextFiles.map(file => ({
+    // HACKATHON: Skip image processing, only include text files
+    const textFiles = contextFiles.filter(file => 
+      !file.type?.startsWith('image/') && 
+      file.type !== 'image/png' && 
+      file.type !== 'image/jpeg'
+    )
+    
+    console.log('HACKATHON: Filtered to text files only:', {
+      originalFiles: contextFiles.length,
+      textFiles: textFiles.length,
+      skippedImages: contextFiles.length - textFiles.length
+    })
+    
+    const workflowContextFiles = textFiles.map(file => ({
       id: file.id,
       name: file.name,
       type: file.type as any,

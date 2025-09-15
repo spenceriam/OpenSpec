@@ -121,22 +121,14 @@ export class OpenRouterClient {
       throw new Error('Model, system prompt, and user prompt are required')
     }
 
-    // Build messages array
+    // Build messages array - userPrompt already includes context from buildUserPrompt()
     const messages: OpenRouterMessage[] = [
       { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt }
+      { role: 'user', content: userPrompt } // userPrompt already includes context
     ]
 
-    // Add context files to user prompt if provided
-    if (contextFiles && contextFiles.length > 0) {
-      let contextContent = '\n\nContext Files:\n'
-      contextFiles.forEach(file => {
-        if (file.type !== 'image' && file.content) {
-          contextContent += `\n## ${file.name}:\n${file.content}\n`
-        }
-      })
-      messages[1].content += contextContent
-    }
+    // NOTE: Context files are already included in userPrompt by buildUserPrompt()
+    // No need to add them again here to avoid double-adding context
 
     const request: OpenRouterCompletionRequest = {
       model,
