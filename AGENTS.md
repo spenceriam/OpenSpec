@@ -195,13 +195,16 @@ Follow conventional commit format:
 
 ## Project Status & Updates
 
-### Current Status: WORKFLOW COMPLETION FEATURES IMPLEMENTED - Full Production Ready Application
+### Current Status: STREAMLINED WORKFLOW WITH PERFORMANCE TRACKING - Full Production Ready Application
+- ✅ **STREAMLINED WORKFLOW AUTOMATION**: Automatic next-phase generation after approval (33% fewer user clicks)
 - ✅ **COMPLETE WORKFLOW IMPLEMENTATION**: Full spec generation workflow (Requirements → Design → Tasks) with professional export
+- ✅ **ENHANCED PERFORMANCE TRACKING**: Fixed empty performance summary with robust data validation and migration
 - ✅ **COMPREHENSIVE COMPLETION SUMMARY**: Model details, performance metrics, timing data, and content previews
 - ✅ **PROFESSIONAL ZIP EXPORT**: Requirements.md, Design.md, Tasks.md, and Mermaid diagram files
 - ✅ **REAL-TIME USER FEEDBACK**: ElapsedTimer component shows API call progress with timing analytics
 - ✅ **ATOMIC UI OPERATIONS**: Fixed approval button double-click issues with atomic state management
 - ✅ **ROBUST RESET FUNCTIONALITY**: Complete localStorage and sessionStorage clearing for clean state
+- ✅ **DEBUG & TROUBLESHOOTING TOOLS**: Comprehensive debugging system for performance tracking issues
 - ✅ **CORE FUNCTIONALITY COMPLETE**: All UI components working with proper workflow
 - ✅ **CRITICAL BUG RESOLVED**: ModelSelector now renders immediately after API key validation
 - ✅ Repository initialized with README.md and project documentation
@@ -229,7 +232,18 @@ Follow conventional commit format:
 - ✅ **SERVER-SIDE TOKEN CLAMPING IMPLEMENTED**: Added comprehensive server-side safeguards against token overflow
 
 ### Recent Changes
-- **2025-01-15 (Latest - COMPREHENSIVE WORKFLOW COMPLETION FEATURES)**: **MAJOR USER EXPERIENCE ENHANCEMENTS** - Implemented full completion summary and export functionality:
+- **2025-01-15 (Latest - STREAMLINED WORKFLOW & PERFORMANCE FIXES)**: **WORKFLOW OPTIMIZATION & DEBUGGING ENHANCEMENTS** - Major UX improvements and performance tracking fixes:
+  - **STREAMLINED WORKFLOW**: Implemented automatic next-phase generation after approval - saves 2 manual clicks (33% fewer interactions)
+  - **WORKFLOW AUTOMATION**: Generate → Approve (auto-generates Design) → Approve (auto-generates Tasks) → Approve → Complete
+  - **FIXED GENERATE BUTTON**: Now shows green checkmark when workflow complete for clear visual feedback
+  - **PERFORMANCE TRACKING DEBUG**: Fixed empty performance summary with comprehensive data validation and migration
+  - **ENHANCED DATA PERSISTENCE**: Robust localStorage validation with automatic migration for timing/apiResponses structures
+  - **COST CALCULATION FIX**: Unified cost calculation using same logic as original generateWithData method
+  - **STALE STATE RESOLUTION**: Fixed state synchronization issues in automatic generation workflow
+  - **COMPREHENSIVE DEBUG TOOLS**: Added debug storage script, console logging, and development-only test data population
+  - **RESULT**: 🎯 **STREAMLINED USER EXPERIENCE** - Faster workflow with reliable performance tracking and debugging tools
+  - **STATUS**: ✅ IMPLEMENTED - Production-ready with enhanced UX and debugging capabilities
+- **2025-01-15 (Earlier - COMPREHENSIVE WORKFLOW COMPLETION FEATURES)**: **MAJOR USER EXPERIENCE ENHANCEMENTS** - Implemented full completion summary and export functionality:
   - **ATOMIC APPROVAL OPERATIONS**: Fixed approval buttons requiring double-clicks by implementing atomic `approveAndProceed` method
   - **REAL-TIME API PROGRESS**: Added `ElapsedTimer` component showing live elapsed time during API calls for user feedback
   - **WORKFLOW COMPLETION SUMMARY**: Created comprehensive summary screen with model details, performance metrics, and collapsible content previews
@@ -340,6 +354,17 @@ Follow conventional commit format:
 - *No active critical issues at this time - all previously identified issues have been resolved*
 
 #### ✅ Recently Completed Features
+- ✅ **Streamlined Workflow Automation**: Automatic next-phase generation saves 33% of user clicks
+  - Generate → Approve (auto-generates Design) → Approve (auto-generates Tasks) → Approve → Complete
+  - Fixed Generate button to show green checkmark when workflow complete
+  - Enhanced approveAndProceed method with automatic generation and proper timing/cost tracking
+- ✅ **Performance Tracking Debug System**: Comprehensive solution for empty performance summary issue
+  - Enhanced data validation with automatic migration for missing timing/apiResponses structures
+  - Fixed stale state issues in automatic generation workflow
+  - Unified cost calculation using same logic across all generation methods
+  - Added debug storage script (`debug-storage.js`) for localStorage inspection
+  - Development-only test button to populate dummy performance data for UI testing
+  - Console logging throughout workflow state changes for debugging
 - ✅ **Workflow Completion Summary Screen**: Comprehensive overview of the entire specification process
   - Model name and details with context window information
   - Prompt description with collapsible preview
@@ -443,10 +468,62 @@ Follow conventional commit format:
 - **Reset & Start Fresh**: Complete data clearing functionality
 - **Continue**: Seamless restoration of previous work session
 
-#### 📋 Other Components
+#### 📍 Other Components
 - Storage utilities: Enhanced with comprehensive session management
 - useSpecWorkflow hook: Ready for workflow implementation
 - OpenRouter integration: Production-ready with error handling
+
+## Debugging and Troubleshooting Tools
+
+### Performance Summary Empty Data Issues
+
+If the performance summary shows empty elapsed time/tokens, use these debugging approaches:
+
+#### Browser Console Commands
+```javascript
+// Inspect current workflow state
+JSON.parse(localStorage.getItem('openspec-workflow-state') || '{}')
+
+// Check for timing data specifically
+const state = JSON.parse(localStorage.getItem('openspec-workflow-state') || '{}')
+console.log('Timing:', state.timing)
+console.log('API Responses:', state.apiResponses)
+
+// List all OpenSpec storage keys
+Object.keys(localStorage).filter(key => key.includes('openspec'))
+```
+
+#### Debug Script
+```bash
+# Run the debug storage script in browser console
+# Copy the contents of debug-storage.js and paste in browser console
+```
+
+#### Development Testing
+```javascript
+// In development mode, use the test button to populate dummy data
+// Look for "🧪 Add Test Performance Data" button when workflow is complete
+// This will help verify that the UI display logic works correctly
+```
+
+#### Console Debug Output
+Look for these console messages to track workflow state:
+- `[DataMigration]` - Shows data validation and migration process
+- `[AutoGen]` - Shows automatic generation completion with timing/cost data
+- `[PerfSummary]` - Shows what data is available when rendering performance summary
+
+#### Common Issues and Solutions
+1. **Empty timing data**: Check if `timing` object exists and has proper structure
+2. **Missing API responses**: Verify `apiResponses` object has data for completed phases
+3. **Stale localStorage**: Clear localStorage and regenerate workflow to get fresh data
+4. **Migration issues**: Look for `[DataMigration]` logs to see if old data is being properly migrated
+
+### File Structure Debug
+```
+debug-storage.js         # Storage inspection utility
+hooks/useSpecWorkflow.ts # Main workflow logic with timing/cost tracking
+app/page.tsx            # Performance summary UI display logic
+```
 
 ## Recent Technical Solutions
 
