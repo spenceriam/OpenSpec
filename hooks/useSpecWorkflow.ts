@@ -354,8 +354,20 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
       // Build phase-specific prompts (clean separation like Kiro IDE)
       switch (state.phase) {
         case 'requirements':
-          // Requirements phase: Only use original input + context files
-          userPrompt = buildRequirementsPrompt(featureName, description, contextFiles)
+          // Requirements phase: Only use original input + context files with size limits
+          const maxDescriptionLength = 5000 // ~1250 tokens max for description
+          const truncatedDescription = description.length > maxDescriptionLength
+            ? description.substring(0, maxDescriptionLength) + '\n\n[Description truncated to fit token limits]'
+            : description
+          
+          console.log(`Requirements generation:`, {
+            originalDescriptionLength: description.length,
+            truncatedDescriptionLength: truncatedDescription.length,
+            contextFilesCount: contextFiles.length,
+            phase: state.phase
+          })
+          
+          userPrompt = buildRequirementsPrompt(featureName, truncatedDescription, contextFiles)
           break
           
         case 'design':
@@ -414,30 +426,94 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
         throw new Error(`Phase ${state.phase} content exceeds token limit. This should not happen with phase separation.`)
       }
 
-      // Determine context files to send based on phase
+      // Determine context files to send based on phase with aggressive size limits
       let contextToSend: ContextFile[] = []
       if (state.phase === 'requirements') {
-        // Only requirements phase gets original context files
-        contextToSend = contextFiles.filter(file => 
-          !file.type?.startsWith('image/') && // Skip images for token efficiency
-          (file.content?.length || 0) < 8000 // Skip very large files
-        )
+        // Only requirements phase gets original context files with STRICT size limits
+        const maxFileSize = 2000 // Max 2KB per file (~500 tokens)
+        const maxTotalSize = 5000 // Max 5KB total (~1250 tokens)
+        
+        let totalSize = 0
+        contextToSend = contextFiles
+          .filter(file => {
+            // Skip images completely
+            if (file.type?.startsWith('image/') || 
+                file.type === 'image/png' || 
+                file.type === 'image/jpeg') {
+              return false
+            }
+            
+            const fileSize = file.content?.length || 0
+            
+            // Skip files that are too large individually
+            if (fileSize > maxFileSize) {
+              console.warn(`Skipping large file ${file.name}: ${fileSize} chars (max ${maxFileSize})`) 
+              return false
+            }
+            
+            // Skip files that would exceed total size limit
+            if (totalSize + fileSize > maxTotalSize) {
+              console.warn(`Skipping file ${file.name}: would exceed total limit (${totalSize + fileSize}/${maxTotalSize})`)
+              return false
+            }
+            
+            totalSize += fileSize
+            return true
+          })
+          .map(file => {
+            // Truncate content to be extra safe
+            const truncatedContent = file.content && file.content.length > maxFileSize
+              ? file.content.substring(0, maxFileSize) + '\n\n[File truncated due to size limits]'
+              : file.content
+              
+            return {
+              ...file,
+              content: truncatedContent
+            }
+          })
+          
+        console.log(`Context files for Requirements phase:`, {
+          originalCount: contextFiles.length,
+          filteredCount: contextToSend.length,
+          totalSizeChars: totalSize,
+          estimatedTokens: Math.ceil(totalSize / 4)
+        })
       }
       // Design and Tasks phases don't need context files - they use approved content
       
-      console.log('=== SENDING TO API ===', {
+      console.log('=== SENDING TO API - DETAILED ANALYSIS ===', {
         url: '/api/generate',
         phase: state.phase,
         modelId: selectedModel?.id || 'anthropic/claude-3.5-sonnet',
         systemPromptLength: systemPrompt.length,
         userPromptLength: userPrompt.length,
         contextFilesCount: contextToSend.length,
+        estimatedInputTokens: Math.ceil((systemPrompt.length + userPrompt.length) / 3.3),
         inputStrategy: {
           requirements: 'Original input + filtered context files',
           design: 'Approved requirements only (no context files)',
           tasks: 'Approved requirements + design (no context files)'
         }[state.phase]
       })
+      
+      // Log the actual content being sent to debug token bloat
+      console.log('=== SYSTEM PROMPT PREVIEW ===', {
+        fullLength: systemPrompt.length,
+        preview: systemPrompt.substring(0, 200) + '...'
+      })
+      
+      console.log('=== USER PROMPT PREVIEW ===', {
+        fullLength: userPrompt.length,
+        preview: userPrompt.substring(0, 500) + '...'
+      })
+      
+      if (contextToSend.length > 0) {
+        console.log('=== CONTEXT FILES BEING SENT ===', contextToSend.map(f => ({
+          name: f.name,
+          type: f.type,
+          contentLength: f.content?.length || 0
+        })))
+      }
       
       const response = await fetch('/api/generate', {
         method: 'POST',
@@ -916,22 +992,51 @@ function buildRequirementsPrompt(featureName: string, description: string, conte
 Description:
 ${description}`
 
+  // Only add context files if they exist and are small enough
   if (contextFiles.length > 0) {
     prompt += '\n\nContext Files:\n'
+    
+    // Calculate current prompt size to ensure we don't exceed limits
+    const currentSize = prompt.length
+    const maxTotalPromptSize = 8000 // ~2000 tokens total for entire prompt
+    let remainingSpace = maxTotalPromptSize - currentSize
+    
     contextFiles.forEach(file => {
+      // Skip if no space remaining
+      if (remainingSpace <= 100) {
+        console.warn(`Skipping context file ${file.name}: not enough remaining space`)
+        return
+      }
+      
       if (file.type === 'image/png' || file.type === 'image/jpeg' || file.type?.startsWith('image/')) {
         // For images, just mention them but don't include the content
-        prompt += `\n## ${file.name} (Image File):\nThis is an image file (${file.type}) with ${file.size} bytes that provides visual context for the feature.\n`
+        const imageRef = `\n## ${file.name} (Image File):\nImage file (${file.type}) providing visual context.\n`
+        if (imageRef.length <= remainingSpace) {
+          prompt += imageRef
+          remainingSpace -= imageRef.length
+        }
       } else if (file.type !== 'image') {
-        // For text files, include the content with reasonable limits
+        // For text files, include content with strict limits
         const content = file.content?.toString() || ''
-        const maxContentLength = 3000 // More generous for requirements phase
-        const truncatedContent = content.length > maxContentLength 
-          ? content.substring(0, maxContentLength) + '\n\n[Content truncated due to length]'
-          : content
-        prompt += `\n## ${file.name}:\n${truncatedContent}\n`
+        const maxContentForThisFile = Math.min(1000, remainingSpace - 100) // Leave buffer
+        
+        if (maxContentForThisFile > 0) {
+          const truncatedContent = content.length > maxContentForThisFile 
+            ? content.substring(0, maxContentForThisFile) + '\n[Truncated]'
+            : content
+          const fileSection = `\n## ${file.name}:\n${truncatedContent}\n`
+          
+          if (fileSection.length <= remainingSpace) {
+            prompt += fileSection
+            remainingSpace -= fileSection.length
+          } else {
+            console.warn(`Skipping context file ${file.name}: would exceed size limit`)
+          }
+        }
       }
     })
+    
+    console.log(`Final Requirements prompt size: ${prompt.length} chars (~${Math.ceil(prompt.length / 4)} tokens)`)
   }
 
   return prompt
