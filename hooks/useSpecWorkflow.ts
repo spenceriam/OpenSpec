@@ -827,29 +827,35 @@ Please update the ${state.phase} document based on this feedback while maintaini
       // Use setTimeout to ensure state update is processed first
       setTimeout(async () => {
         try {
-          // Update the internal state reference for the next phase
-          const currentState = state
           const startTime = Date.now()
           
-          setState(prev => ({ 
-            ...prev, 
-            isGenerating: true, 
-            error: null,
-            timing: {
-              ...prev.timing,
-              [nextPhase]: {
-                startTime,
-                endTime: 0,
-                elapsed: 0
+          // Use a reference to get the current state at execution time
+          let currentStateForPrompt: SpecState
+          
+          setState(prev => { 
+            // Capture the current state for prompt building
+            currentStateForPrompt = { ...prev, phase: nextPhase }
+            
+            return {
+              ...prev, 
+              isGenerating: true, 
+              error: null,
+              timing: {
+                ...prev.timing,
+                [nextPhase]: {
+                  startTime,
+                  endTime: 0,
+                  elapsed: 0
+                }
               }
             }
-          }))
+          })
           
           onGenerationStart?.(nextPhase)
           
-          // Build the appropriate prompt for the next phase
+          // Build the appropriate prompt for the next phase using fresh state
           const systemPrompt = getSystemPromptForPhase(nextPhase)
-          const userPrompt = buildUserPrompt({ ...currentState, phase: nextPhase })
+          const userPrompt = buildUserPrompt(currentStateForPrompt!)
           
           // Create AbortController for timeout handling
           const controller = new AbortController()
@@ -886,11 +892,26 @@ Please update the ${state.phase} document based on this feedback while maintaini
           // Calculate timing and cost info
           const endTime = Date.now()
           const elapsed = endTime - startTime
-          const costInfo = usage ? {
-            prompt_cost: ((usage.prompt_tokens || 0) * 0.003) / 1000, // $3 per 1M tokens
-            completion_cost: ((usage.completion_tokens || 0) * 0.015) / 1000, // $15 per 1M tokens  
-            total_cost: (((usage.prompt_tokens || 0) * 0.003) + ((usage.completion_tokens || 0) * 0.015)) / 1000
-          } : { prompt_cost: 0, completion_cost: 0, total_cost: 0 }
+          
+          // Calculate cost using the same logic as generateWithData
+          let costInfo = undefined
+          if (usage && selectedModel?.pricing) {
+            const promptCost = (usage.prompt_tokens / 1000) * parseFloat(selectedModel.pricing.prompt)
+            const completionCost = (usage.completion_tokens / 1000) * parseFloat(selectedModel.pricing.completion)
+            costInfo = {
+              prompt: promptCost,
+              completion: completionCost,
+              total: promptCost + completionCost
+            }
+          }
+          
+          // Debug logging to understand what data we're storing
+          console.log(`[AutoGen] ${nextPhase} phase completed:`, {
+            elapsed: elapsed + 'ms',
+            tokens: usage?.total_tokens || 0,
+            cost: costInfo?.total || 0,
+            hasContent: !!content
+          })
           
           setState(prev => ({
             ...prev,

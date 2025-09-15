@@ -907,6 +907,14 @@ export default function Home() {
                               const apiResponse = workflow.state.apiResponses?.[phase as keyof typeof workflow.state.apiResponses]
                               const hasContent = workflow.state[phase as keyof typeof workflow.state]
                               
+                              // Debug logging to see what data we have
+                              console.log(`[PerfSummary] ${phase}:`, { 
+                                hasContent: !!hasContent, 
+                                timing, 
+                                apiResponse,
+                                fullState: workflow.state 
+                              })
+                              
                               // Only show phases that have been completed
                               if (!hasContent) return null
                               
