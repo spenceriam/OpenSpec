@@ -14,7 +14,7 @@ import { useSpecWorkflow } from '@/hooks/useSpecWorkflow'
 import { ElapsedTimer } from '@/components/ElapsedTimer'
 import { createSpecificationZip, downloadZipFile } from '@/lib/exportUtils'
 import { useSimpleApiKeyStorage } from '@/hooks/useSimpleApiKeyStorage'
-import { useSpecWorkflow } from '@/hooks/useSpecWorkflow'
+import { useModelStorage, usePromptStorage, useContextFilesStorage } from '@/hooks/useSessionStorage'
 import { DotPattern } from '@/components/magicui/dot-pattern'
 
 export default function Home() {
