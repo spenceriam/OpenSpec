@@ -173,6 +173,13 @@ function clampPrompts(
 }
 
 export async function POST(request: NextRequest) {
+  console.log('=== API ROUTE STARTED ===', {
+    timestamp: new Date().toISOString(),
+    url: request.url,
+    method: request.method,
+    headers: Object.fromEntries(request.headers.entries())
+  })
+  
   try {
     // Rate limiting
     const clientIP = getClientIP(request)
@@ -203,7 +210,12 @@ export async function POST(request: NextRequest) {
     let body: unknown
     try {
       body = await request.json()
-    } catch {
+      console.log('=== REQUEST BODY PARSED ===', {
+        bodyKeys: Object.keys(body as Record<string, unknown>),
+        bodySize: JSON.stringify(body).length
+      })
+    } catch (parseError) {
+      console.error('=== JSON PARSE ERROR ===', parseError)
       return NextResponse.json(
         {
           error: {
@@ -255,6 +267,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Create OpenRouter client
+    console.log('=== CREATING OPENROUTER CLIENT ===', {
+      apiKeyLength: apiKey.length,
+      apiKeyValid: apiKey.startsWith('sk-or-')
+    })
+    
     const client = new OpenRouterClient(apiKey)
 
     // Apply server-side token clamping with conservative context limit
@@ -319,12 +336,35 @@ export async function POST(request: NextRequest) {
     )
 
   } catch (error: unknown) {
-    console.error('Error in /api/generate:', error)
+    console.error('=== DETAILED ERROR ANALYSIS ===', {
+      errorType: typeof error,
+      errorName: error instanceof Error ? error.name : 'Unknown',
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : 'No stack',
+      errorObj: error,
+      errorKeys: error && typeof error === 'object' ? Object.keys(error) : []
+    })
 
     // Handle OpenRouter API errors
-    const errorObj = error as { code?: string; message?: string; retryable?: boolean }
+    const errorObj = error as { code?: string; message?: string; retryable?: boolean; status?: number }
+    
+    console.log('=== ERROR OBJECT ANALYSIS ===', {
+      hasCode: !!errorObj.code,
+      hasMessage: !!errorObj.message,
+      hasStatus: !!errorObj.status,
+      code: errorObj.code,
+      message: errorObj.message,
+      status: errorObj.status
+    })
+    
     if (errorObj.code && errorObj.message) {
       const statusCode = getStatusCodeFromError(errorObj.code)
+      console.log('=== RETURNING OPENROUTER ERROR ===', {
+        originalCode: errorObj.code,
+        mappedStatus: statusCode,
+        message: errorObj.message
+      })
+      
       return NextResponse.json(
         {
           error: {
@@ -338,12 +378,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle generic errors
+    console.log('=== RETURNING GENERIC ERROR ===', {
+      originalError: String(error)
+    })
+    
     return NextResponse.json(
       {
         error: {
           code: 'INTERNAL_ERROR',
           message: 'An internal server error occurred',
-          retryable: true
+          retryable: true,
+          debug: error instanceof Error ? error.message : String(error)
         }
       },
       { status: 500 }

@@ -160,6 +160,14 @@ export class OpenRouterClient {
         'X-Title': 'OpenSpec',
       }),
     }
+    
+    console.log('=== OPENROUTER REQUEST ===', {
+      url,
+      method: options.method || 'GET',
+      hasBody: !!options.body,
+      bodyLength: options.body ? String(options.body).length : 0,
+      headersKeys: Object.keys(headers)
+    })
 
     let attempt = 0
     const maxRetries = 3
@@ -171,11 +179,31 @@ export class OpenRouterClient {
           headers,
         })
 
+        console.log('=== OPENROUTER RESPONSE ===', {
+          status: response?.status,
+          statusText: response?.statusText,
+          ok: response?.ok,
+          headers: response ? Object.fromEntries(response.headers.entries()) : {}
+        })
+        
         if (!response || !response.ok) {
-          const errorData = response ? await response.json().catch(() => ({})) : {}
+          console.log('=== RESPONSE NOT OK - PARSING ERROR ===', {
+            hasResponse: !!response,
+            status: response?.status,
+            statusText: response?.statusText
+          })
+          
+          let errorData = {}
+          try {
+            errorData = response ? await response.json() : {}
+            console.log('=== ERROR DATA PARSED ===', errorData)
+          } catch (parseError) {
+            console.error('=== ERROR PARSING RESPONSE ===', parseError)
+          }
           
           // Retry on server errors
           if (response && response.status >= 500 && attempt < maxRetries) {
+            console.log('=== RETRYING SERVER ERROR ===', { attempt, maxRetries })
             attempt++
             await this.delay(Math.pow(2, attempt) * 1000)
             continue
@@ -185,15 +213,26 @@ export class OpenRouterClient {
           if (response && response.status === 429 && attempt < maxRetries) {
             const retryAfter = response.headers.get('retry-after')
             const delay = retryAfter ? parseInt(retryAfter) * 1000 : Math.pow(2, attempt) * 1000
+            console.log('=== RETRYING RATE LIMIT ===', { attempt, delay })
             attempt++
             await this.delay(delay)
             continue
           }
 
+          const errorMessage = (errorData as any)?.error?.message || (response ? `HTTP ${response.status}: ${response.statusText}` : 'Network error')
+          const errorCode = (errorData as any)?.error?.code
+          
+          console.error('=== THROWING OPENROUTER ERROR ===', {
+            message: errorMessage,
+            status: response?.status || 0,
+            code: errorCode,
+            errorData
+          })
+          
           throw new OpenRouterError(
-            errorData.error?.message || (response ? `HTTP ${response.status}: ${response.statusText}` : 'Network error'),
+            errorMessage,
             response?.status || 0,
-            errorData.error?.code
+            errorCode
           )
         }
 
