@@ -47,6 +47,14 @@ export default function Home() {
   useEffect(() => {
     if (hasCheckedSession) return // Don't check again if we've already checked
     
+    // Check if we just did a reset (flag in sessionStorage)
+    const justReset = sessionStorage.getItem('openspec-just-reset')
+    if (justReset) {
+      sessionStorage.removeItem('openspec-just-reset')
+      setHasCheckedSession(true)
+      return // Skip session restoration after reset
+    }
+    
     const hasPromptData = prompt.trim().length > 10 // Meaningful prompt content
     const hasFiles = contextFiles.length > 0
     // Only show dialog if user has made meaningful progress beyond just API key + model selection
@@ -93,24 +101,15 @@ export default function Home() {
   }
 
   const handleResetAndStartFresh = () => {
-    // Clear ALL session/local storage to remove any cached generation data
+    // Set flag to prevent session restoration after reload
     if (typeof window !== 'undefined') {
+      sessionStorage.setItem('openspec-just-reset', 'true')
+      // Clear ALL storage
       sessionStorage.clear()
       localStorage.clear()
+      // Re-add the reset flag after clearing
+      sessionStorage.setItem('openspec-just-reset', 'true')
     }
-    
-    // Reset: Clear ALL session data including API key, model, prompt, and context files
-    clearAPIKey()
-    clearModel()
-    clearPrompt()
-    clearContextFiles()
-    
-    // Clear current session state
-    setApiKeyStatus(null)
-    setModelLoadStatus(null)
-    setCurrentStep(1)
-    setShowContinueDialog(false)
-    setHasCheckedSession(true) // Mark as checked so dialog won't show again
     
     // Reset workflow state including all generation content
     workflow.resetWorkflow()
@@ -538,7 +537,7 @@ export default function Home() {
                           </div>
                         </>
                       ) : (
-                        <div className="text-center py-8 text-muted-foreground">
+                        <div className="text-center py-16 text-muted-foreground min-h-[300px] flex flex-col justify-center">
                           <FileText className="h-8 w-8 mx-auto mb-2" />
                           <div>No requirements generated yet</div>
                           <div className="text-xs mt-1">Click Generate Requirements to start</div>
@@ -587,7 +586,7 @@ export default function Home() {
                           </div>
                         </>
                       ) : (
-                        <div className="text-center py-8 text-muted-foreground">
+                        <div className="text-center py-16 text-muted-foreground min-h-[300px] flex flex-col justify-center">
                           <Layers className="h-8 w-8 mx-auto mb-2" />
                           <div>No design generated yet</div>
                           <div className="text-xs mt-1">Click Generate Design to start</div>
@@ -633,7 +632,7 @@ export default function Home() {
                           </div>
                         </>
                       ) : (
-                        <div className="text-center py-8 text-muted-foreground">
+                        <div className="text-center py-16 text-muted-foreground min-h-[300px] flex flex-col justify-center">
                           <List className="h-8 w-8 mx-auto mb-2" />
                           <div>No tasks generated yet</div>
                           <div className="text-xs mt-1">Click Generate Tasks to start</div>
