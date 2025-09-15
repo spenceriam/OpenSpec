@@ -103,6 +103,50 @@ export interface UseSpecWorkflowReturn {
   }
 }
 
+// Helper function to detect if prompt has significantly changed
+function hasPromptChanged(storedDescription: string, newDescription: string, storedFeatureName: string, newFeatureName: string): boolean {
+  if (!storedDescription && !newDescription) return false
+  if (!storedDescription || !newDescription) return Boolean(storedDescription !== newDescription)
+  
+  // Extract key information for comparison
+  const normalizeText = (text: string) => text.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim()
+  const getKeyWords = (text: string) => normalizeText(text).split(/\s+/).filter(word => word.length > 3)
+  
+  const storedWords = getKeyWords(storedDescription)
+  const newWords = getKeyWords(newDescription)
+  const storedFeatureWords = getKeyWords(storedFeatureName || '')
+  const newFeatureWords = getKeyWords(newFeatureName || '')
+  
+  // Check feature name similarity
+  const featureNameChanged = storedFeatureName && newFeatureName && 
+    normalizeText(storedFeatureName) !== normalizeText(newFeatureName)
+  
+  // Check if significant content has changed (less than 40% word overlap)
+  const allStoredWords = [...storedWords, ...storedFeatureWords]
+  const allNewWords = [...newWords, ...newFeatureWords]
+  
+  if (allStoredWords.length === 0 || allNewWords.length === 0) {
+    return allStoredWords.length !== allNewWords.length
+  }
+  
+  const intersection = allStoredWords.filter(word => allNewWords.includes(word))
+  const overlap = intersection.length / Math.max(allStoredWords.length, allNewWords.length)
+  
+  const significantChange = overlap < 0.4 || featureNameChanged
+  
+  if (significantChange) {
+    console.log('=== PROMPT CHANGE DETECTED ===', {
+      storedFeature: storedFeatureName,
+      newFeature: newFeatureName,
+      overlap: (overlap * 100).toFixed(1) + '%',
+      featureNameChanged,
+      willReset: true
+    })
+  }
+  
+  return significantChange
+}
+
 export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWorkflowReturn {
   const {
     autoSave = true,
@@ -341,11 +385,44 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
       return
     }
 
-    setState(prev => ({ 
-      ...prev, 
-      isGenerating: true, 
-      error: null 
-    }))
+    // SMART PROMPT CHANGE DETECTION: Auto-reset if prompt significantly changed
+    const hasExistingContent = state.requirements || state.design || state.tasks
+    if (hasExistingContent && state.phase === 'requirements') {
+      const promptChanged = hasPromptChanged(
+        state.description || '', 
+        description, 
+        state.featureName || '', 
+        featureName
+      )
+      
+      if (promptChanged) {
+        console.log('=== AUTO-RESET: Prompt changed significantly, clearing stale workflow data ===')
+        // Reset to clean state but preserve the new prompt data
+        setState(prev => ({
+          ...DEFAULT_SPEC_STATE,
+          phase: 'requirements', // Start fresh at requirements phase
+          featureName,
+          description,
+          context: contextFiles,
+          isGenerating: true, // We're about to generate
+          error: null
+        }))
+        setRefinementHistory([])
+        // Continue with generation using the clean state
+      } else {
+        setState(prev => ({ 
+          ...prev, 
+          isGenerating: true, 
+          error: null 
+        }))
+      }
+    } else {
+      setState(prev => ({ 
+        ...prev, 
+        isGenerating: true, 
+        error: null 
+      }))
+    }
 
     onGenerationStart?.(state.phase)
 
