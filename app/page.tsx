@@ -15,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { FileText, Download, Play, Key, Brain, MessageSquare, Check, X } from 'lucide-react'
+import { FileText, Download, Play, Key, Brain, MessageSquare, Check, X, AlertCircle, CheckCircle, Layers, List } from 'lucide-react'
 import { useModelStorage, usePromptStorage, useContextFilesStorage } from '@/hooks/useSessionStorage'
 import { useSimpleApiKeyStorage } from '@/hooks/useSimpleApiKeyStorage'
 import { useSpecWorkflow } from '@/hooks/useSpecWorkflow'
@@ -641,23 +641,7 @@ export default function Home() {
               </Card>
             </div>
           )}
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        Export
-                      </Button>
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {/* Horizontal Progress Steps */}
-                  <div className="flex items-center justify-center gap-8 mb-4 overflow-x-auto pb-2">
-                    {[
-                      { phase: 'requirements', label: 'Requirements', icon: FileText, description: 'EARS format requirements and user stories' },
-                      { phase: 'design', label: 'Design', icon: FileText, description: 'Technical design and architecture diagrams' },
-                      { phase: 'tasks', label: 'Tasks', icon: FileText, description: 'Implementation tasks and checkboxes' }
-                    ].map(({ phase, label, icon: Icon, description }, index) => {
-                      const isActive = workflow.currentPhase === phase
-                      const isCompleted = workflow.approvals[phase as keyof typeof workflow.approvals] === 'approved'
+        </div>
                       const hasContent = !!workflow.phaseContent[phase as keyof typeof workflow.phaseContent]
                       const isGeneratingThis = workflow.isGenerating && isActive
                       
