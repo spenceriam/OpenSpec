@@ -62,9 +62,17 @@ export default function Home() {
     // Check if we just did a reset (flag in sessionStorage)
     const justReset = sessionStorage.getItem('openspec-just-reset')
     if (justReset) {
-      sessionStorage.removeItem('openspec-just-reset')
+      // DON'T remove the flag immediately - let all hooks process it first
+      // We'll remove it after a delay to ensure all storage hooks see it
       setJustDidReset(true)
       setHasCheckedSession(true)
+      
+      // Remove the flag after a short delay to let all hooks process it
+      setTimeout(() => {
+        sessionStorage.removeItem('openspec-just-reset')
+        console.log('=== RESET FLAG REMOVED AFTER HOOK PROCESSING ===')
+      }, 1000)
+      
       return // Skip session restoration after reset
     }
     
@@ -139,8 +147,9 @@ export default function Home() {
     setHasCheckedSession(true) // Prevent session restore dialog
     setJustDidReset(true) // Prevent auto-advancement
     
-    // Step 2: Reset workflow state aggressively
+    // Step 2: Reset workflow state aggressively - FORCE IMMEDIATE RESET
     workflow.resetWorkflow()
+    workflow.reset() // Call both methods to ensure complete reset
     
     // Step 3: Clear API key, model, and prompt data
     clearAPIKey()
