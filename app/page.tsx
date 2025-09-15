@@ -16,7 +16,8 @@ import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { FileText, Download, Play, Key, Brain, MessageSquare, Check, X } from 'lucide-react'
-import { useAPIKeyStorage, useModelStorage, usePromptStorage, useContextFilesStorage } from '@/hooks/useSessionStorage'
+import { useModelStorage, usePromptStorage, useContextFilesStorage } from '@/hooks/useSessionStorage'
+import { useSimpleApiKeyStorage } from '@/hooks/useSimpleApiKeyStorage'
 import { DotPattern } from '@/components/magicui/dot-pattern'
 
 // This would normally come from your workflow state management
@@ -37,7 +38,7 @@ const mockWorkflowState = {
 }
 
 export default function Home() {
-  const { value: apiKey, hasValidKey, clearAPIKey } = useAPIKeyStorage()
+  const { value: apiKey, hasValidKey, setAPIKey, clearAPIKey } = useSimpleApiKeyStorage()
   
   // Monitor storage changes
   useEffect(() => {

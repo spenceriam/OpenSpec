@@ -4,14 +4,15 @@ import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Zap, RotateCcw } from 'lucide-react'
-import { useAPIKeyStorage, useModelStorage, usePromptStorage, useContextFilesStorage } from '@/hooks/useSessionStorage'
+import { useModelStorage, usePromptStorage, useContextFilesStorage } from '@/hooks/useSessionStorage'
+import { useSimpleApiKeyStorage } from '@/hooks/useSimpleApiKeyStorage'
 
 interface HeaderProps {
   className?: string
 }
 
 export default function Header({ className = '' }: HeaderProps) {
-  const { clearAPIKey } = useAPIKeyStorage()
+  const { clearAPIKey } = useSimpleApiKeyStorage()
   const { clearModel } = useModelStorage()
   const { clearPrompt } = usePromptStorage()
   const { clearFiles } = useContextFilesStorage()
