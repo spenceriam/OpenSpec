@@ -38,6 +38,15 @@ const mockWorkflowState = {
 
 export default function Home() {
   const { value: apiKey, hasValidKey, clearAPIKey } = useAPIKeyStorage()
+  
+  // Monitor storage changes
+  useEffect(() => {
+    console.log('Storage values changed:', {
+      apiKey: apiKey ? `${apiKey.substring(0, 8)}...` : 'null',
+      hasValidKey,
+      timestamp: new Date().getTime()
+    })
+  }, [apiKey, hasValidKey])
   const { selectedModel, setModel, clearModel } = useModelStorage()
   const { prompt, setPrompt, clearPrompt } = usePromptStorage()
   const { contextFiles, setFiles: setContextFiles, clearFiles: clearContextFiles } = useContextFilesStorage()
@@ -54,6 +63,45 @@ export default function Home() {
   const hasModel = Boolean(selectedModel)
   const hasPrompt = prompt.trim().length > 10
   const canStartGeneration = hasApiKey && hasModel && hasPrompt
+  
+  // Track when hasApiKey changes
+  useEffect(() => {
+    console.log('hasApiKey changed:', {
+      hasApiKey,
+      apiKey: apiKey ? 'present' : 'null',
+      hasValidKey,
+      calculation: `Boolean(${!!apiKey} && ${hasValidKey}) = ${hasApiKey}`,
+      timestamp: new Date().getTime()
+    })
+  }, [hasApiKey, apiKey, hasValidKey])
+  
+  // Monitor sessionStorage changes
+  useEffect(() => {
+    const logStorageState = () => {
+      console.log('Current sessionStorage state:', {
+        apiKey: sessionStorage.getItem('openspec-api-key') ? 'present' : 'null',
+        tested: sessionStorage.getItem('openspec-api-key-tested'),
+        model: sessionStorage.getItem('openspec-selected-model') ? 'present' : 'null',
+        timestamp: new Date().getTime()
+      })
+    }
+    
+    // Log initial state
+    logStorageState()
+    
+    // Listen for storage events
+    const handleStorageChange = (e: StorageEvent) => {
+      console.log('SessionStorage changed:', {
+        key: e.key,
+        oldValue: e.oldValue ? `${e.oldValue.substring(0, 20)}...` : 'null',
+        newValue: e.newValue ? `${e.newValue.substring(0, 20)}...` : 'null'
+      })
+      logStorageState()
+    }
+    
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [])
 
   // Debug logging for state tracking
   console.log('Main page render state:', {
@@ -64,7 +112,9 @@ export default function Home() {
     apiKeyStatus,
     modelLoadStatus,
     apiKeyValue: apiKey ? 'present' : 'missing',
-    selectedModelName: selectedModel?.name || 'none'
+    hasValidKeyFromStorage: hasValidKey,
+    selectedModelName: selectedModel?.name || 'none',
+    renderTimestamp: new Date().getTime()
   })
 
   // Check for existing session data on mount - ONLY ONCE
