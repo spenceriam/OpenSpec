@@ -330,7 +330,7 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
     }
   }, [hasValidKey, apiKey, state, setState, onGenerationStart, onGenerationComplete, onError, selectedModel])
 
-  // Direct generation with passed data (bypasses state issues)
+  // Phase-specific generation matching Kiro IDE's workflow
   const generateWithData = useCallback(async (featureName: string, description: string, contextFiles: ContextFile[]) => {
     if (!hasValidKey || !apiKey) {
       const error = new Error('Valid OpenRouter API key is required')
@@ -348,73 +348,95 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
     onGenerationStart?.(state.phase)
 
     try {
-      // Build user prompt directly with passed data
-      const directState = {
-        featureName,
-        description,
-        context: contextFiles,
-        phase: state.phase,
-        requirements: state.requirements,
-        design: state.design,
-        tasks: state.tasks
+      const systemPrompt = getSystemPromptForPhase(state.phase)
+      let userPrompt: string
+      
+      // Build phase-specific prompts (clean separation like Kiro IDE)
+      switch (state.phase) {
+        case 'requirements':
+          // Requirements phase: Only use original input + context files
+          userPrompt = buildRequirementsPrompt(featureName, description, contextFiles)
+          break
+          
+        case 'design':
+          // Design phase: Only use approved requirements (no original description/files)
+          if (!state.requirements) {
+            throw new Error('Requirements must be completed and approved before generating design')
+          }
+          userPrompt = buildDesignPrompt(state.requirements)
+          break
+          
+        case 'tasks':
+          // Tasks phase: Only use approved requirements + design
+          if (!state.requirements || !state.design) {
+            throw new Error('Requirements and Design must be completed and approved before generating tasks')
+          }
+          userPrompt = buildTasksPrompt(state.requirements, state.design)
+          break
+          
+        default:
+          throw new Error(`Unknown phase: ${state.phase}`)
       }
 
-      const systemPrompt = getSystemPromptForPhase(state.phase)
-      let userPrompt = buildUserPrompt(directState as SpecState)
-
-      // Estimate token count (rough approximation: ~4 chars per token)
-      const estimatedTokens = Math.ceil((systemPrompt.length + userPrompt.length) / 4)
-      const maxTokens = 8192 // max output tokens we're requesting
-      const modelContextLimit = 32000 // leaving some buffer from 32768
+      // Simple token estimation for phase-specific prompts
+      const systemPromptTokens = Math.ceil(systemPrompt.length / 3.3)
+      const userPromptTokens = Math.ceil(userPrompt.length / 3.3)
+      const estimatedInputTokens = systemPromptTokens + userPromptTokens
+      const maxOutputTokens = 8192
+      const modelContextLimit = 28000 // Conservative buffer
       
-      console.log('=== DIRECT GENERATION ===', {
-        featureName,
-        description: description.substring(0, 100) + '...',
-        contextFiles: contextFiles.length,
-        estimatedInputTokens: estimatedTokens,
-        userPromptLength: userPrompt.length,
-        phase: state.phase
+      console.log('=== PHASE-SPECIFIC GENERATION ===', {
+        phase: state.phase,
+        featureName: state.phase === 'requirements' ? featureName : '[Using approved content]',
+        systemPromptTokens,
+        userPromptTokens,
+        estimatedInputTokens,
+        maxOutputTokens,
+        totalTokensNeeded: estimatedInputTokens + maxOutputTokens,
+        modelContextLimit,
+        withinLimit: (estimatedInputTokens + maxOutputTokens) <= modelContextLimit,
+        promptStrategy: {
+          requirements: 'Original description + context files',
+          design: 'Approved requirements only', 
+          tasks: 'Approved requirements + design only'
+        }[state.phase]
       })
       
-      // Check if we're approaching token limits
-      if (estimatedTokens + maxTokens > modelContextLimit) {
-        console.warn('Token limit warning:', {
-          estimatedInput: estimatedTokens,
-          maxOutput: maxTokens,
-          total: estimatedTokens + maxTokens,
+      // Token validation - should be much cleaner now with phase separation
+      if (estimatedInputTokens + maxOutputTokens > modelContextLimit) {
+        console.error('=== TOKEN LIMIT EXCEEDED (UNEXPECTED) ===', {
+          phase: state.phase,
+          estimatedInput: estimatedInputTokens,
+          maxOutput: maxOutputTokens,
+          total: estimatedInputTokens + maxOutputTokens,
           limit: modelContextLimit
         })
-        
-        // For now, filter out image files if we're over limit
-        const filteredContextFiles = contextFiles.filter(file => file.type !== 'image/png' && file.type !== 'image/jpeg')
-        
-        if (filteredContextFiles.length !== contextFiles.length) {
-          console.log('Filtered out image files to reduce token count')
-          // Rebuild with filtered context
-          const filteredState = { ...directState, context: filteredContextFiles }
-          const filteredUserPrompt = buildUserPrompt(filteredState as SpecState)
-          const newEstimate = Math.ceil((systemPrompt.length + filteredUserPrompt.length) / 4)
-          
-          console.log('After filtering images:', {
-            originalTokens: estimatedTokens,
-            newTokens: newEstimate,
-            reduction: estimatedTokens - newEstimate
-          })
-          
-          // Use filtered data if still reasonable
-          if (newEstimate + maxTokens <= modelContextLimit) {
-            directState.context = filteredContextFiles
-            userPrompt = filteredUserPrompt
-          }
-        }
+        throw new Error(`Phase ${state.phase} content exceeds token limit. This should not happen with phase separation.`)
       }
 
+      // Determine context files to send based on phase
+      let contextToSend: ContextFile[] = []
+      if (state.phase === 'requirements') {
+        // Only requirements phase gets original context files
+        contextToSend = contextFiles.filter(file => 
+          !file.type?.startsWith('image/') && // Skip images for token efficiency
+          (file.content?.length || 0) < 8000 // Skip very large files
+        )
+      }
+      // Design and Tasks phases don't need context files - they use approved content
+      
       console.log('=== SENDING TO API ===', {
         url: '/api/generate',
+        phase: state.phase,
         modelId: selectedModel?.id || 'anthropic/claude-3.5-sonnet',
         systemPromptLength: systemPrompt.length,
         userPromptLength: userPrompt.length,
-        contextFilesCount: contextFiles.length
+        contextFilesCount: contextToSend.length,
+        inputStrategy: {
+          requirements: 'Original input + filtered context files',
+          design: 'Approved requirements only (no context files)',
+          tasks: 'Approved requirements + design (no context files)'
+        }[state.phase]
       })
       
       const response = await fetch('/api/generate', {
@@ -427,7 +449,7 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
           model: selectedModel?.id || 'anthropic/claude-3.5-sonnet',
           systemPrompt,
           userPrompt,
-          contextFiles,
+          contextFiles: contextToSend,
           options: {
             temperature: 0.3,
             max_tokens: 8192
@@ -476,14 +498,27 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
       
       const { content } = responseData
 
-      setState(prev => ({
-        ...prev,
-        [state.phase]: content,
-        isGenerating: false,
-        featureName, // Also update the state for persistence
-        description,
-        context: contextFiles
-      }))
+      // Update state appropriately for each phase
+      setState(prev => {
+        const baseUpdate = {
+          ...prev,
+          [state.phase]: content,
+          isGenerating: false
+        }
+        
+        // Only update feature metadata during requirements phase
+        if (state.phase === 'requirements') {
+          return {
+            ...baseUpdate,
+            featureName,
+            description,
+            context: contextFiles
+          }
+        }
+        
+        // Design and Tasks phases don't need to update original input data
+        return baseUpdate
+      })
 
       onGenerationComplete?.(state.phase, content)
 
@@ -665,27 +700,45 @@ Please update the ${state.phase} document based on this feedback while maintaini
 
   // Additional methods for test compatibility
   const generateContent = useCallback(async (phase: WorkflowPhase, prompt: string, model: string) => {
-    // For now, delegate to generateCurrentPhase - could extend to support specific phases later
-    if (phase !== state.phase) {
-      // Temporarily switch to target phase
-      const currentPhase = state.phase
+    // Use direct generation approach instead of state-dependent method
+    // Extract feature name from prompt or use default
+    const promptLines = prompt.trim().split('\n')
+    const featureName = promptLines[0]?.replace(/^#+\s*/, '').trim() || 'Technical Specification'
+    
+    // Use current context files from state
+    const contextFiles = state.context || []
+    
+    // Temporarily switch to target phase if needed
+    const currentPhase = state.phase
+    if (phase !== currentPhase) {
       setState(prev => ({ ...prev, phase }))
-      await generateCurrentPhase()
-      setState(prev => ({ ...prev, phase: currentPhase }))
-    } else {
-      await generateCurrentPhase()
     }
-  }, [state.phase, setState, generateCurrentPhase])
+    
+    try {
+      await generateWithData(featureName, prompt, contextFiles)
+    } finally {
+      // Restore original phase if it was changed
+      if (phase !== currentPhase) {
+        setState(prev => ({ ...prev, phase: currentPhase }))
+      }
+    }
+  }, [state.phase, state.context, setState, generateWithData])
 
   const refineContent = useCallback(async (phase: WorkflowPhase, feedback: string, model: string) => {
-    // For now, delegate to refineCurrentPhase - could extend to support specific phases later
-    if (phase !== state.phase) {
-      const currentPhase = state.phase
+    // Use refinement method which is separate from generation
+    // Temporarily switch to target phase if needed
+    const currentPhase = state.phase
+    if (phase !== currentPhase) {
       setState(prev => ({ ...prev, phase }))
+    }
+    
+    try {
       await refineCurrentPhase(feedback)
-      setState(prev => ({ ...prev, phase: currentPhase }))
-    } else {
-      await refineCurrentPhase(feedback)
+    } finally {
+      // Restore original phase if it was changed
+      if (phase !== currentPhase) {
+        setState(prev => ({ ...prev, phase: currentPhase }))
+      }
     }
   }, [state.phase, setState, refineCurrentPhase])
 
@@ -856,22 +909,23 @@ function getRefinementPromptForPhase(phase: WorkflowPhase): string {
   }
 }
 
-function buildUserPrompt(state: SpecState): string {
-  let prompt = `Feature: ${state.featureName}
+// Phase-specific prompt builders matching Kiro IDE's approach
+function buildRequirementsPrompt(featureName: string, description: string, contextFiles: ContextFile[]): string {
+  let prompt = `Feature: ${featureName}
 
 Description:
-${state.description}`
+${description}`
 
-  if (state.context.length > 0) {
+  if (contextFiles.length > 0) {
     prompt += '\n\nContext Files:\n'
-    state.context.forEach(file => {
+    contextFiles.forEach(file => {
       if (file.type === 'image/png' || file.type === 'image/jpeg' || file.type?.startsWith('image/')) {
-        // For images, just mention them but don't include the content (base64 would be huge)
+        // For images, just mention them but don't include the content
         prompt += `\n## ${file.name} (Image File):\nThis is an image file (${file.type}) with ${file.size} bytes that provides visual context for the feature.\n`
       } else if (file.type !== 'image') {
-        // For text files, include the content but limit size
+        // For text files, include the content with reasonable limits
         const content = file.content?.toString() || ''
-        const maxContentLength = 2000 // Limit to ~500 tokens per file
+        const maxContentLength = 3000 // More generous for requirements phase
         const truncatedContent = content.length > maxContentLength 
           ? content.substring(0, maxContentLength) + '\n\n[Content truncated due to length]'
           : content
@@ -880,13 +934,36 @@ ${state.description}`
     })
   }
 
-  // Add existing content for subsequent phases
-  if (state.phase === 'design' && state.requirements) {
-    prompt += '\n\nExisting Requirements:\n' + state.requirements
-  } else if (state.phase === 'tasks' && state.requirements && state.design) {
-    prompt += '\n\nExisting Requirements:\n' + state.requirements
-    prompt += '\n\nExisting Design:\n' + state.design
-  }
-
   return prompt
+}
+
+function buildDesignPrompt(requirements: string): string {
+  return `Based on the following approved requirements, create a comprehensive technical design document with architectural diagrams.
+
+## Requirements:
+${requirements}`
+}
+
+function buildTasksPrompt(requirements: string, design: string): string {
+  return `Based on the following approved requirements and design, create a detailed implementation task list with numbered checkboxes.
+
+## Requirements:
+${requirements}
+
+## Design:
+${design}`
+}
+
+// Legacy function for backward compatibility - now routes to phase-specific builders
+function buildUserPrompt(state: SpecState): string {
+  switch (state.phase) {
+    case 'requirements':
+      return buildRequirementsPrompt(state.featureName, state.description, state.context)
+    case 'design':
+      return buildDesignPrompt(state.requirements || '')
+    case 'tasks':
+      return buildTasksPrompt(state.requirements || '', state.design || '')
+    default:
+      return buildRequirementsPrompt(state.featureName, state.description, state.context)
+  }
 }
