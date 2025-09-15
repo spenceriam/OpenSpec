@@ -316,14 +316,11 @@ export function useAPIKeyStorage(): UseSessionStorageReturn & {
       console.warn(`API key ${operation} error:`, error)
     },
     onStorageChange: (newValue, oldValue) => {
-      if (newValue && !oldValue) {
-        console.info('API key added')
-      } else if (!newValue && oldValue) {
-        console.info('API key removed')
-        setIsAPITested(false) // Clear test status when key is removed
-      } else if (newValue && oldValue && newValue !== oldValue) {
-        console.info('API key updated')
-        setIsAPITested(false) // Clear test status when key changes
+      console.info('API key storage changed:', { newValue: !!newValue, oldValue: !!oldValue })
+      // Don't automatically clear isAPITested here - let setAPIKey/clearAPIKey handle it
+      if (!newValue && oldValue) {
+        // Only clear test status when key is actually removed (not when setting)
+        setIsAPITested(false)
       }
     }
   })
