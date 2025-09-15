@@ -95,21 +95,27 @@ export default function Home() {
     }
     
     // Set initial step based on what's already completed
-    if (hasApiKey && selectedModel && hasPromptData) {
-      setCurrentStep(3)
-      setApiKeyStatus('success')
-      setModelLoadStatus('success')
-    } else if (hasApiKey && selectedModel) {
-      setCurrentStep(3)
-      setApiKeyStatus('success')
-      setModelLoadStatus('success')
-    } else if (hasApiKey) {
-      setCurrentStep(2)
-      setApiKeyStatus('success')
+    // But don't change currentStep if workflow is in complete phase or actively generating
+    if (workflow.currentPhase === 'complete') {
+      // Always show step 4 when workflow is complete
+      setCurrentStep(4)
+    } else if (!workflow.isGenerating) {
+      if (hasApiKey && selectedModel && hasPromptData) {
+        setCurrentStep(3)
+        setApiKeyStatus('success')
+        setModelLoadStatus('success')
+      } else if (hasApiKey && selectedModel) {
+        setCurrentStep(3)
+        setApiKeyStatus('success')
+        setModelLoadStatus('success')
+      } else if (hasApiKey) {
+        setCurrentStep(2)
+        setApiKeyStatus('success')
+      }
     }
     
     setHasCheckedSession(true) // Mark that we've checked the session
-  }, [hasApiKey, selectedModel, prompt, contextFiles, hasCheckedSession, justDidReset])
+  }, [hasApiKey, selectedModel, prompt, contextFiles, hasCheckedSession, justDidReset, workflow.currentPhase, workflow.isGenerating])
 
   // Ensure API key status is set correctly when key is valid (but not after reset)
   useEffect(() => {
@@ -646,10 +652,27 @@ export default function Home() {
                                 </Button>
                                 <Button
                                   onClick={workflow.approveAndProceed}
+                                  disabled={workflow.isGenerating}
                                   className="bg-green-600 hover:bg-green-700 min-w-[180px]"
                                   size="sm"
                                 >
-                                  ✓ Approve & Continue to Design
+                                  {workflow.isGenerating ? (
+                                    <span className="flex items-center gap-2">
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                      Generating Design
+                                      {workflow.state.timing.design?.startTime && (
+                                        <ElapsedTimer 
+                                          startTime={workflow.state.timing.design.startTime}
+                                          isRunning={workflow.isGenerating}
+                                          className="text-xs text-primary-foreground"
+                                          showIcon={false}
+                                          compact={true}
+                                        />
+                                      )}
+                                    </span>
+                                  ) : (
+                                    '✓ Approve & Continue to Design'
+                                  )}
                                 </Button>
                               </div>
                             </div>
@@ -723,10 +746,27 @@ export default function Home() {
                                 </Button>
                                 <Button
                                   onClick={workflow.approveAndProceed}
+                                  disabled={workflow.isGenerating}
                                   className="bg-green-600 hover:bg-green-700 min-w-[180px]"
                                   size="sm"
                                 >
-                                  ✓ Approve & Continue to Tasks
+                                  {workflow.isGenerating ? (
+                                    <span className="flex items-center gap-2">
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                      Generating Tasks
+                                      {workflow.state.timing.tasks?.startTime && (
+                                        <ElapsedTimer 
+                                          startTime={workflow.state.timing.tasks.startTime}
+                                          isRunning={workflow.isGenerating}
+                                          className="text-xs text-primary-foreground"
+                                          showIcon={false}
+                                          compact={true}
+                                        />
+                                      )}
+                                    </span>
+                                  ) : (
+                                    '✓ Approve & Continue to Tasks'
+                                  )}
                                 </Button>
                               </div>
                             </div>
@@ -799,10 +839,18 @@ export default function Home() {
                                 </Button>
                                 <Button
                                   onClick={workflow.approveAndProceed}
+                                  disabled={workflow.isGenerating}
                                   className="bg-blue-600 hover:bg-blue-700 min-w-[200px]"
                                   size="sm"
                                 >
-                                  ✓ Approve & Complete Workflow
+                                  {workflow.isGenerating ? (
+                                    <span className="flex items-center gap-2">
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                      Completing Workflow
+                                    </span>
+                                  ) : (
+                                    '✓ Approve & Complete Workflow'
+                                  )}
                                 </Button>
                               </div>
                             </div>
