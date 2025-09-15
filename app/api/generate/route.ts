@@ -2,6 +2,57 @@ import { NextRequest, NextResponse } from 'next/server'
 import { OpenRouterClient } from '@/lib/openrouter/client'
 import { GenerateCompletionRequest } from '@/types'
 
+// Simple token estimator (approx 3.7 chars per token)
+function estimateTokensFromChars(charCount: number): number {
+  return Math.ceil(charCount / 3.7)
+}
+
+// Middle-out truncation to fit a character budget while preserving the most informative parts
+function middleOut(text: string, targetChars: number): string {
+  if (text.length <= targetChars) return text
+  const head = Math.floor(targetChars * 0.6)
+  const tail = Math.floor(targetChars * 0.35)
+  const buffer = targetChars - head - tail
+  const headText = text.slice(0, head)
+  const tailText = text.slice(-tail)
+  return `${headText}\n\n[... ${buffer >= 0 ? 'content omitted for length' : 'truncated'} ...]\n\n${tailText}`
+}
+
+// Removes obvious base64/data URLs or long hexdumps from prompts
+function stripBinaryLikeSequences(text: string): string {
+  // Remove data URLs and long base64 chunks
+  const dataUrlRegex = /data:[^;]+;base64,[A-Za-z0-9+/=]{256,}/g
+  const longBase64Regex = /[A-Za-z0-9+/=]{512,}/g
+  return text
+    .replace(dataUrlRegex, '[binary data omitted]')
+    .replace(longBase64Regex, '[base64 omitted]')
+}
+
+// Clamp combined prompts to fit within a conservative context budget
+function clampPrompts(systemPrompt: string, userPrompt: string, contextLimitTokens = 32768, maxOutputTokens = 8192) {
+  // Reserve a safety buffer of 10% of remaining input tokens
+  const inputBudgetTokens = Math.max(1000, Math.floor((contextLimitTokens - maxOutputTokens) * 0.9))
+  const inputBudgetChars = Math.max(4000, Math.floor(inputBudgetTokens * 3.7))
+
+  // Sanitize obvious binary content first
+  let cleanSystem = stripBinaryLikeSequences(systemPrompt || '')
+  let cleanUser = stripBinaryLikeSequences(userPrompt || '')
+
+  const combined = `${cleanSystem}\n\n${cleanUser}`
+  if (combined.length <= inputBudgetChars) {
+    return { system: cleanSystem, user: cleanUser }
+  }
+
+  // Prefer trimming user content first, keep system mostly intact but capped
+  const maxSystemChars = Math.min(cleanSystem.length, Math.floor(inputBudgetChars * 0.25))
+  cleanSystem = cleanSystem.length > maxSystemChars ? middleOut(cleanSystem, maxSystemChars) : cleanSystem
+
+  const remainingForUser = Math.max(2000, inputBudgetChars - cleanSystem.length)
+  cleanUser = middleOut(cleanUser, remainingForUser)
+
+  return { system: cleanSystem, user: cleanUser }
+}
+
 // Rate limiting storage (in production, use Redis or similar)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
 
@@ -147,13 +198,20 @@ export async function POST(request: NextRequest) {
     // Create OpenRouter client
     const client = new OpenRouterClient(apiKey)
 
+    // Determine conservative context limit if not known. Many providers cap at ~32K.
+    const assumedContextLimit = 32768
+    const maxOutput = options?.max_tokens ?? 8192
+
+    // Clamp prompts defensively to avoid overflows regardless of upstream bugs
+    const clamped = clampPrompts(systemPrompt, userPrompt, assumedContextLimit, maxOutput)
+
     // Generate completion
     const completion = await client.generateCompletion(
       model,
-      systemPrompt,
-      userPrompt,
-      contextFiles,
-      options
+      clamped.system,
+      clamped.user,
+      [],
+      { ...options, max_tokens: maxOutput }
     )
 
     // Return successful response

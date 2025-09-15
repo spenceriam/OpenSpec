@@ -271,7 +271,8 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
       const userPrompt = buildUserPrompt(state)
 
       // Log workflow state for debugging
-      if (process.env.NODE_ENV === 'development') {
+      const isDev = (globalThis as any).process?.env?.NODE_ENV === 'development'
+      if (isDev) {
         console.log('=== WORKFLOW GENERATION DEBUG ===', {
           phase: state.phase,
           featureName: state.featureName || 'EMPTY',
@@ -360,15 +361,60 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
           const truncatedDescription = description.length > maxDescriptionLength
             ? description.substring(0, maxDescriptionLength) + '\n\n[Description truncated to fit token limits]'
             : description
-          
+
           console.log(`Requirements generation:`, {
             originalDescriptionLength: description.length,
             truncatedDescriptionLength: truncatedDescription.length,
             contextFilesCount: contextFiles.length,
             phase: state.phase
           })
-          
-          userPrompt = buildRequirementsPrompt(featureName, truncatedDescription, contextFiles)
+
+          // Determine context files to send with STRICT size limits BEFORE building the prompt
+          let contextToSend: ContextFile[] = []
+          {
+            const maxFileSize = 2000 // Max 2KB per file (~500 tokens)
+            const maxTotalSize = 5000 // Max 5KB total (~1250 tokens)
+            let totalSize = 0
+            contextToSend = contextFiles
+              .filter(file => {
+                if (file.type?.startsWith('image/') || file.type === 'image/png' || file.type === 'image/jpeg') {
+                  return false
+                }
+                const fileSize = file.content?.length || 0
+                if (fileSize > maxFileSize) {
+                  console.warn(`Skipping large file ${file.name}: ${fileSize} chars (max ${maxFileSize})`)
+                  return false
+                }
+                if (totalSize + fileSize > maxTotalSize) {
+                  console.warn(`Skipping file ${file.name}: would exceed total limit (${totalSize + fileSize}/${maxTotalSize})`)
+                  return false
+                }
+                totalSize += fileSize
+                return true
+              })
+              .map(file => {
+                const truncatedContent = file.content && file.content.length > maxFileSize
+                  ? file.content.substring(0, maxFileSize) + '\n\n[File truncated due to size limits]'
+                  : file.content
+                return { ...file, content: truncatedContent }
+              })
+
+            console.log(`Context files (filtered) for Requirements phase:`, {
+              originalCount: contextFiles.length,
+              filteredCount: contextToSend.length,
+              totalSizeChars: totalSize,
+              estimatedTokens: estimateTokens(contextToSend.map(f => f.content || '').join('')),
+              fileDetails: contextToSend.map(f => ({
+                name: f.name,
+                type: f.type,
+                size: f.content?.length || 0,
+                tokens: estimateTokens(f.content || '')
+              }))
+            })
+          }
+
+          // Build prompt using the FILTERED context to avoid token explosions
+          userPrompt = buildRequirementsPrompt(featureName, truncatedDescription, contextToSend)
           break
           
         case 'design':
@@ -416,64 +462,30 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
         throw new Error(tokenValidation.error || `Phase ${state.phase} content exceeds token limit.`)
       }
 
-      // Determine context files to send based on phase with aggressive size limits
+      // Determine context files to send based on phase (already filtered above for requirements)
       let contextToSend: ContextFile[] = []
       if (state.phase === 'requirements') {
-        // Only requirements phase gets original context files with STRICT size limits
-        const maxFileSize = 2000 // Max 2KB per file (~500 tokens)
-        const maxTotalSize = 5000 // Max 5KB total (~1250 tokens)
-        
+        // Recompute the same filter to guarantee consistency in case code above changes
+        const maxFileSize = 2000
+        const maxTotalSize = 5000
         let totalSize = 0
         contextToSend = contextFiles
           .filter(file => {
-            // Skip images completely
-            if (file.type?.startsWith('image/') || 
-                file.type === 'image/png' || 
-                file.type === 'image/jpeg') {
+            if (isImageLike(file)) {
               return false
             }
-            
             const fileSize = file.content?.length || 0
-            
-            // Skip files that are too large individually
-            if (fileSize > maxFileSize) {
-              console.warn(`Skipping large file ${file.name}: ${fileSize} chars (max ${maxFileSize})`) 
-              return false
-            }
-            
-            // Skip files that would exceed total size limit
-            if (totalSize + fileSize > maxTotalSize) {
-              console.warn(`Skipping file ${file.name}: would exceed total limit (${totalSize + fileSize}/${maxTotalSize})`)
-              return false
-            }
-            
+            if (fileSize > maxFileSize) return false
+            if (totalSize + fileSize > maxTotalSize) return false
             totalSize += fileSize
             return true
           })
-          .map(file => {
-            // Truncate content to be extra safe
-            const truncatedContent = file.content && file.content.length > maxFileSize
+          .map(file => ({
+            ...file,
+            content: file.content && file.content.length > maxFileSize
               ? file.content.substring(0, maxFileSize) + '\n\n[File truncated due to size limits]'
               : file.content
-              
-            return {
-              ...file,
-              content: truncatedContent
-            }
-          })
-          
-        console.log(`Context files for Requirements phase:`, {
-          originalCount: contextFiles.length,
-          filteredCount: contextToSend.length,
-          totalSizeChars: totalSize,
-          estimatedTokens: estimateTokens(contextToSend.map(f => f.content || '').join('')),
-          fileDetails: contextToSend.map(f => ({
-            name: f.name,
-            type: f.type,
-            size: f.content?.length || 0,
-            tokens: estimateTokens(f.content || '')
           }))
-        })
       }
       // Design and Tasks phases don't need context files - they use approved content
       
@@ -521,7 +533,7 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
       if (contextToSend.length > 0) {
         console.log('=== CONTEXT FILES BEING SENT ===', contextToSend.map(f => ({
           name: f.name,
-          type: f.type,
+          type: (f as any).type ?? f.type,
           contentLength: f.content?.length || 0
         })))
       }
@@ -973,6 +985,12 @@ Please update the ${state.phase} document based on this feedback while maintaini
 }
 
 // Helper functions for prompts  
+function isImageLike(file: ContextFile): boolean {
+  const t: any = (file as any).type
+  if (!t || typeof t !== 'string') return false
+  return t.startsWith('image/') || t === 'image/png' || t === 'image/jpeg'
+}
+
 function getSystemPromptForPhase(phase: WorkflowPhase): string {
   switch (phase) {
     case 'requirements':
