@@ -93,6 +93,12 @@ export default function Home() {
   }
 
   const handleResetAndStartFresh = () => {
+    // Clear ALL session/local storage to remove any cached generation data
+    if (typeof window !== 'undefined') {
+      sessionStorage.clear()
+      localStorage.clear()
+    }
+    
     // Reset: Clear ALL session data including API key, model, prompt, and context files
     clearAPIKey()
     clearModel()
@@ -106,21 +112,10 @@ export default function Home() {
     setShowContinueDialog(false)
     setHasCheckedSession(true) // Mark as checked so dialog won't show again
     
-    // Reset workflow state if needed
+    // Reset workflow state including all generation content
     workflow.resetWorkflow()
-  }
-
-  const handleClearAllData = () => {
-    // Clear ALL session storage
-    if (typeof window !== 'undefined') {
-      sessionStorage.clear()
-      localStorage.clear()
-    }
     
-    // Reset all state
-    handleResetAndStartFresh()
-    
-    // Force page reload to ensure clean state
+    // Force page reload to ensure completely clean state
     window.location.reload()
   }
 
@@ -270,20 +265,9 @@ export default function Home() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex-1 flex flex-col relative z-10">
         {/* Compact Hero Section */}
         <div className="text-center mb-4">
-          <div className="flex justify-between items-center mb-2">
-            <div></div>
-            <h2 className="text-xl font-bold text-foreground">
-              Generate Technical Specifications
-            </h2>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleClearAllData}
-              className="text-xs"
-            >
-              Clear All Data
-            </Button>
-          </div>
+          <h2 className="text-xl font-bold text-foreground mb-1">
+            Generate Technical Specifications
+          </h2>
           <p className="text-xs text-muted-foreground max-w-xl mx-auto">
             Create comprehensive requirements, design documents, and tasks using AI models.
           </p>
