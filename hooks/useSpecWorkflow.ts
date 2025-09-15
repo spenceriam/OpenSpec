@@ -368,7 +368,49 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
             phase: state.phase
           })
           
-          userPrompt = buildRequirementsPrompt(featureName, truncatedDescription, contextFiles)
+          // Filter and truncate context BEFORE calling buildRequirementsPrompt
+          const maxFileSize = 2000 // Max 2KB per file (~500 tokens)
+          const maxTotalSize = 5000 // Max 5KB total (~1250 tokens)
+          
+          let totalSize = 0
+          const contextToSend = contextFiles
+            .filter(file => {
+              // Skip images completely using robust detection
+              if (isImageLike(file)) {
+                console.warn(`Skipping image file: ${file.name} (type: ${file.type})`)
+                return false
+              }
+              
+              const fileSize = file.content?.length || 0
+              
+              // Skip files that are too large individually
+              if (fileSize > maxFileSize) {
+                console.warn(`Skipping large file ${file.name}: ${fileSize} chars (max ${maxFileSize})`) 
+                return false
+              }
+              
+              // Skip files that would exceed total size limit
+              if (totalSize + fileSize > maxTotalSize) {
+                console.warn(`Skipping file ${file.name}: would exceed total limit (${totalSize + fileSize}/${maxTotalSize})`)
+                return false
+              }
+              
+              totalSize += fileSize
+              return true
+            })
+            .map(file => {
+              // Truncate content to be extra safe
+              const truncatedContent = file.content && file.content.length > maxFileSize
+                ? file.content.substring(0, maxFileSize) + '\n\n[File truncated due to size limits]'
+                : file.content
+                
+              return {
+                ...file,
+                content: truncatedContent
+              }
+            })
+          
+          userPrompt = buildRequirementsPrompt(featureName, truncatedDescription, contextToSend)
           break
           
         case 'design':
@@ -416,64 +458,14 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
         throw new Error(tokenValidation.error || `Phase ${state.phase} content exceeds token limit.`)
       }
 
-      // Determine context files to send based on phase with aggressive size limits
+      // Get context files to send based on phase (already filtered during prompt building)
       let contextToSend: ContextFile[] = []
       if (state.phase === 'requirements') {
-        // Only requirements phase gets original context files with STRICT size limits
-        const maxFileSize = 2000 // Max 2KB per file (~500 tokens)
-        const maxTotalSize = 5000 // Max 5KB total (~1250 tokens)
+        // Use the already filtered contextToSend from the requirements generation above
+        // No additional filtering needed here since it was done in the switch statement
+        contextToSend = [] // Empty since context is embedded in userPrompt already
         
-        let totalSize = 0
-        contextToSend = contextFiles
-          .filter(file => {
-            // Skip images completely
-            if (file.type?.startsWith('image/') || 
-                file.type === 'image/png' || 
-                file.type === 'image/jpeg') {
-              return false
-            }
-            
-            const fileSize = file.content?.length || 0
-            
-            // Skip files that are too large individually
-            if (fileSize > maxFileSize) {
-              console.warn(`Skipping large file ${file.name}: ${fileSize} chars (max ${maxFileSize})`) 
-              return false
-            }
-            
-            // Skip files that would exceed total size limit
-            if (totalSize + fileSize > maxTotalSize) {
-              console.warn(`Skipping file ${file.name}: would exceed total limit (${totalSize + fileSize}/${maxTotalSize})`)
-              return false
-            }
-            
-            totalSize += fileSize
-            return true
-          })
-          .map(file => {
-            // Truncate content to be extra safe
-            const truncatedContent = file.content && file.content.length > maxFileSize
-              ? file.content.substring(0, maxFileSize) + '\n\n[File truncated due to size limits]'
-              : file.content
-              
-            return {
-              ...file,
-              content: truncatedContent
-            }
-          })
-          
-        console.log(`Context files for Requirements phase:`, {
-          originalCount: contextFiles.length,
-          filteredCount: contextToSend.length,
-          totalSizeChars: totalSize,
-          estimatedTokens: estimateTokens(contextToSend.map(f => f.content || '').join('')),
-          fileDetails: contextToSend.map(f => ({
-            name: f.name,
-            type: f.type,
-            size: f.content?.length || 0,
-            tokens: estimateTokens(f.content || '')
-          }))
-        })
+        console.log(`Context files for Requirements phase: embedded in userPrompt to prevent duplication`)
       }
       // Design and Tasks phases don't need context files - they use approved content
       
@@ -1077,6 +1069,27 @@ ${design}`
 function estimateTokens(text: string): number {
   // Based on OpenAI/Anthropic tokenization: ~3.7 chars per token for English
   return Math.ceil(text.length / 3.7)
+}
+
+function isImageLike(file: ContextFile): boolean {
+  if (!file) return false
+  
+  // Check file type
+  if (file.type && (file.type.startsWith('image/') || file.type === 'image/png' || file.type === 'image/jpeg')) {
+    return true
+  }
+  
+  // Check file name extensions
+  if (file.name && /\.(jpg|jpeg|png|gif|svg|webp|bmp|ico)$/i.test(file.name)) {
+    return true
+  }
+  
+  // Check for data URLs (base64 images)
+  if (file.content && typeof file.content === 'string' && file.content.startsWith('data:image/')) {
+    return true
+  }
+  
+  return false
 }
 
 function validateTokenLimits(systemPrompt: string, userPrompt: string, maxTokens = 8192, modelLimit = 200000): { 

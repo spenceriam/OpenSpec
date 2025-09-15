@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { OpenRouterClient } from '@/lib/openrouter/client'
-import { GenerateCompletionRequest } from '@/types'
 
 // Rate limiting storage (in production, use Redis or similar)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
@@ -62,6 +61,112 @@ function getClientIP(request: NextRequest): string {
   return 'unknown'
 }
 
+// Token estimation and prompt clamping utilities
+function estimateTokens(text: string): number {
+  // Based on OpenAI/Anthropic tokenization: ~3.7 chars per token for English
+  return Math.ceil(text.length / 3.7)
+}
+
+// Note: isImageLike function available but not currently used in server-side route
+// Context file filtering is handled client-side in useSpecWorkflow
+
+function stripBinaryContent(text: string): string {
+  // Remove base64 data URLs and other binary-like sequences
+  return text
+    // Remove data URLs (base64 images, PDFs, etc.)
+    .replace(/data:[a-zA-Z0-9\/+;=,.-]+base64,[A-Za-z0-9+/=]+/g, '[BINARY_DATA_REMOVED]')
+    // Remove long sequences that look like base64
+    .replace(/[A-Za-z0-9+/]{200,}={0,2}/g, '[BINARY_SEQUENCE_REMOVED]')
+    // Remove other potential binary markers
+    .replace(/\x00[\x00-\x1F]{10,}/g, '[BINARY_CONTENT_REMOVED]')
+}
+
+function clampPrompts(
+  systemPrompt: string, 
+  userPrompt: string, 
+  contextLimitTokens: number = 32768, 
+  maxOutputTokens: number = 8192
+): { system: string; user: string; estimated: number; clamped: boolean } {
+  // Clean binary content first
+  const cleanSystem = stripBinaryContent(systemPrompt)
+  const cleanUser = stripBinaryContent(userPrompt)
+  
+  // Calculate safe input budget (leave buffer for output tokens)
+  const inputBudget = contextLimitTokens - maxOutputTokens - 100 // Small buffer
+  const systemTokens = estimateTokens(cleanSystem)
+  const userTokens = estimateTokens(cleanUser)
+  const totalInputTokens = systemTokens + userTokens
+  
+  console.log('=== SERVER-SIDE TOKEN CLAMPING ===', {
+    originalSystem: systemPrompt.length,
+    originalUser: userPrompt.length,
+    cleanedSystem: cleanSystem.length,
+    cleanedUser: cleanUser.length,
+    systemTokens,
+    userTokens,
+    totalInputTokens,
+    inputBudget,
+    needsClamping: totalInputTokens > inputBudget
+  })
+  
+  // If within budget, return cleaned content
+  if (totalInputTokens <= inputBudget) {
+    return {
+      system: cleanSystem,
+      user: cleanUser,
+      estimated: totalInputTokens,
+      clamped: cleanSystem !== systemPrompt || cleanUser !== userPrompt
+    }
+  }
+  
+  // Need to clamp - preserve system prompt (usually smaller), clamp user prompt
+  let finalSystem = cleanSystem
+  let finalUser = cleanUser
+  
+  // If system prompt is too large, truncate it first
+  const maxSystemTokens = Math.floor(inputBudget * 0.2) // 20% for system
+  if (systemTokens > maxSystemTokens) {
+    const maxSystemChars = maxSystemTokens * 3.7
+    finalSystem = cleanSystem.substring(0, Math.floor(maxSystemChars)) + '\n\n[System prompt truncated to fit token limits]'
+  }
+  
+  // Calculate remaining budget for user prompt
+  const finalSystemTokens = estimateTokens(finalSystem)
+  const userBudget = inputBudget - finalSystemTokens
+  
+  if (estimateTokens(finalUser) > userBudget) {
+    const maxUserChars = userBudget * 3.7
+    
+    // Middle-out truncation: keep beginning and end, truncate middle
+    if (finalUser.length > maxUserChars) {
+      const keepStart = Math.floor(maxUserChars * 0.6)
+      const keepEnd = Math.floor(maxUserChars * 0.3)
+      const truncationNote = '\n\n[... Content truncated due to token limits - middle section removed ...]\n\n'
+      
+      finalUser = finalUser.substring(0, keepStart) + 
+                 truncationNote + 
+                 finalUser.substring(finalUser.length - keepEnd)
+    }
+  }
+  
+  const finalTokens = estimateTokens(finalSystem + finalUser)
+  
+  console.log('=== CLAMPING RESULTS ===', {
+    originalTokens: totalInputTokens,
+    finalTokens,
+    reduction: totalInputTokens - finalTokens,
+    finalSystemLength: finalSystem.length,
+    finalUserLength: finalUser.length
+  })
+  
+  return {
+    system: finalSystem,
+    user: finalUser,
+    estimated: finalTokens,
+    clamped: true
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Rate limiting
@@ -90,10 +195,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse request body
-    let body: any
+    let body: unknown
     try {
       body = await request.json()
-    } catch (error) {
+    } catch {
       return NextResponse.json(
         {
           error: {
@@ -106,7 +211,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate required fields
-    const { apiKey, model, systemPrompt, userPrompt, contextFiles, options } = body
+    const { apiKey, model, systemPrompt, userPrompt, options } = body as Record<string, unknown>
 
     if (!apiKey) {
       return NextResponse.json(
@@ -147,13 +252,26 @@ export async function POST(request: NextRequest) {
     // Create OpenRouter client
     const client = new OpenRouterClient(apiKey)
 
-    // Generate completion
+    // Apply server-side token clamping with conservative context limit
+    const assumedContextLimit = 32768 // Conservative limit that works across most models
+    const maxOutput = options?.max_tokens ?? 8192
+    const clamped = clampPrompts(systemPrompt, userPrompt, assumedContextLimit, maxOutput)
+    
+    console.log('=== SERVER CLAMPING APPLIED ===', {
+      model,
+      originalTokenEstimate: estimateTokens(systemPrompt + userPrompt),
+      clampedTokenEstimate: clamped.estimated,
+      wasClamped: clamped.clamped,
+      maxOutput
+    })
+
+    // Generate completion with clamped prompts and empty contextFiles to avoid duplication
     const completion = await client.generateCompletion(
       model,
-      systemPrompt,
-      userPrompt,
-      contextFiles,
-      options
+      clamped.system,
+      clamped.user,
+      [], // Always empty - context is embedded in user prompt
+      { ...options, max_tokens: maxOutput }
     )
 
     // Return successful response
@@ -172,18 +290,19 @@ export async function POST(request: NextRequest) {
       }
     )
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in /api/generate:', error)
 
     // Handle OpenRouter API errors
-    if (error.code && error.message) {
-      const statusCode = getStatusCodeFromError(error.code)
+    const errorObj = error as { code?: string; message?: string; retryable?: boolean }
+    if (errorObj.code && errorObj.message) {
+      const statusCode = getStatusCodeFromError(errorObj.code)
       return NextResponse.json(
         {
           error: {
-            code: error.code,
-            message: error.message,
-            retryable: error.retryable || false
+            code: errorObj.code,
+            message: errorObj.message,
+            retryable: errorObj.retryable || false
           }
         },
         { status: statusCode }
