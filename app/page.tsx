@@ -34,14 +34,27 @@ export default function Home() {
   const [isRegenerating, setIsRegenerating] = useState(false)
   const [lastGenerationTime, setLastGenerationTime] = useState<number>(0)
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
+  const [contentCollapsed, setContentCollapsed] = useState(true) // Default to collapsed/preview mode
+  const [justDidReset, setJustDidReset] = useState(false) // Track if we just did a reset
 
   const hasApiKey = Boolean(apiKey && hasValidKey)
   const hasModel = Boolean(selectedModel)
   const hasPrompt = prompt.trim().length > 10
   const canStartGeneration = hasApiKey && hasModel && hasPrompt
   
-  
-
+  // Helper function to check if current phase has content
+  const hasContentForCurrentPhase = () => {
+    switch (workflow.currentPhase) {
+      case 'requirements':
+        return workflow.state.requirements && workflow.state.requirements.trim().length > 0
+      case 'design':
+        return workflow.state.design && workflow.state.design.trim().length > 0
+      case 'tasks':
+        return workflow.state.tasks && workflow.state.tasks.trim().length > 0
+      default:
+        return false
+    }
+  }
 
   // Check for existing session data on mount - ONLY ONCE
   useEffect(() => {
@@ -51,8 +64,15 @@ export default function Home() {
     const justReset = sessionStorage.getItem('openspec-just-reset')
     if (justReset) {
       sessionStorage.removeItem('openspec-just-reset')
+      setJustDidReset(true)
       setHasCheckedSession(true)
       return // Skip session restoration after reset
+    }
+    
+    // Don't auto-advance if we just did a reset
+    if (justDidReset) {
+      setHasCheckedSession(true)
+      return
     }
     
     const hasPromptData = prompt.trim().length > 10 // Meaningful prompt content
@@ -79,18 +99,28 @@ export default function Home() {
     }
     
     setHasCheckedSession(true) // Mark that we've checked the session
-  }, [hasApiKey, selectedModel, prompt, contextFiles, hasCheckedSession])
+  }, [hasApiKey, selectedModel, prompt, contextFiles, hasCheckedSession, justDidReset])
+
+  // Ensure API key status is set correctly when key is valid (but not after reset)
+  useEffect(() => {
+    if (hasApiKey && apiKeyStatus !== 'success' && !justDidReset) {
+      setApiKeyStatus('success')
+      // Trigger update to ensure UI reflects API key validation
+      setForceUpdate(prev => prev + 1)
+    }
+  }, [hasApiKey, apiKeyStatus, justDidReset])
 
   const handleApiKeyValidated = (isValid: boolean, key?: string) => {
+    console.log('=== API KEY VALIDATED ===', { isValid, hasKey: !!key })
     if (isValid && key) {
       setApiKeyStatus('success')
       setCurrentStep(2)
-      // Force component re-render after small delay to ensure storage hook updates
-      setTimeout(() => {
-        setForceUpdate(prev => prev + 1)
-      }, 200)
+      setJustDidReset(false) // Allow normal progression after API key entry
+      // Force update to ensure UI synchronization after validation
+      setForceUpdate(prev => prev + 1)
     } else {
       setApiKeyStatus('error')
+      setCurrentStep(1) // Stay on step 1 if validation fails
     }
   }
 
@@ -101,21 +131,71 @@ export default function Home() {
   }
 
   const handleResetAndStartFresh = () => {
-    // Set flag to prevent session restoration after reload
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('openspec-just-reset', 'true')
-      // Clear ALL storage
-      sessionStorage.clear()
-      localStorage.clear()
-      // Re-add the reset flag after clearing
-      sessionStorage.setItem('openspec-just-reset', 'true')
-    }
+    console.log('=== NUCLEAR RESET INITIATED ===')
     
-    // Reset workflow state including all generation content
+    // Step 1: Reset all UI state immediately
+    setCurrentStep(1)
+    setApiKeyStatus(null)
+    setModelLoadStatus(null)
+    setIsRegenerating(false)
+    setLastGenerationTime(0)
+    setShowRegenerateConfirm(false)
+    setContentCollapsed(true)
+    setForceUpdate(0)
+    setHasCheckedSession(true) // Prevent session restore dialog
+    setJustDidReset(true) // Prevent auto-advancement
+    
+    // Step 2: Reset workflow state aggressively
     workflow.resetWorkflow()
     
+    // Step 3: Clear API key, model, and prompt data
+    clearAPIKey()
+    clearModel()
+    clearPrompt()
+    clearContextFiles()
+    
+    // Step 4: Clear ALL browser storage (nuclear option)
+    if (typeof window !== 'undefined') {
+      console.log('=== CLEARING ALL STORAGE ===')
+      
+      // Clear everything
+      try {
+        // CRITICAL: Clear the workflow state key specifically first
+        localStorage.removeItem('openspec-workflow-state')
+        console.log('=== FORCE REMOVED WORKFLOW STATE ===')
+        
+        // Clear all storage
+        localStorage.clear()
+        sessionStorage.clear()
+        
+        // Double-check and remove any remaining openspec keys
+        Object.keys(localStorage).forEach(key => {
+          if (key.includes('openspec')) {
+            localStorage.removeItem(key)
+            console.log('=== FORCE REMOVED LOCAL KEY ===', key)
+          }
+        })
+        
+        Object.keys(sessionStorage).forEach(key => {
+          if (key.includes('openspec')) {
+            sessionStorage.removeItem(key)
+            console.log('=== FORCE REMOVED SESSION KEY ===', key)
+          }
+        })
+        
+        // Set the reset flag AFTER clearing everything
+        sessionStorage.setItem('openspec-just-reset', 'true')
+        
+      } catch (error) {
+        console.error('=== STORAGE CLEAR ERROR ===', error)
+      }
+    }
+    
+    console.log('=== NUCLEAR RESET COMPLETE - RELOADING PAGE ===')
     // Force page reload to ensure completely clean state
-    window.location.reload()
+    setTimeout(() => {
+      window.location.reload()
+    }, 200)
   }
 
   const handleContinue = () => {
@@ -249,7 +329,7 @@ export default function Home() {
   }
 
   return (
-    <div className="h-full bg-background flex flex-col relative overflow-hidden">
+    <div className="min-h-screen bg-background flex flex-col relative">
       {/* Subtle Dot Pattern Background */}
       <DotPattern 
         className="opacity-20 fill-muted-foreground/10" 
@@ -261,7 +341,7 @@ export default function Home() {
       />
       
       {/* Main Content */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex-1 flex flex-col relative z-10">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex-1 relative z-10">
         {/* Compact Hero Section */}
         <div className="text-center mb-4">
           <h2 className="text-xl font-bold text-foreground mb-1">
@@ -345,11 +425,12 @@ export default function Home() {
         </div>
 
         {/* Step Content */}
-        <div className="flex-1 flex flex-col justify-start">
+        <div className="w-full">
           {/* Step 1: API Key */}
             <div className={currentStep === 1 ? 'block' : 'hidden'}>
               <ComponentErrorBoundary name="ApiKeyInput">
                 <ApiKeyInput
+                  key={`api-key-${forceUpdate}-${hasApiKey}`}
                   onApiKeyValidated={handleApiKeyValidated}
                   onLoadingChange={(loading) => setApiKeyStatus(loading ? 'loading' : null)}
                   autoTest={true}
@@ -398,21 +479,52 @@ export default function Home() {
 
           {/* Step 4: Generation/Results with Approval Workflow */}
           {currentStep === 4 && (
-            <div className="flex-1 flex flex-col gap-4 min-h-0">
+            <div className="w-full flex flex-col gap-4">
+              {/* Workflow Guide */}
+              <Card className="bg-primary/5 border-primary/20 mb-4">
+                <CardContent className="pt-4">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <FileText className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-sm mb-2">AI-Powered Specification Workflow</h4>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        This workflow transforms your feature description into complete technical specifications through three progressive phases, each building on the previous.
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                        <div className="bg-background/50 p-3 rounded border">
+                          <div className="font-medium text-primary mb-1">📋 Phase 1: Requirements</div>
+                          <div className="text-muted-foreground">Analyzes your prompt to create structured user stories, acceptance criteria, and functional requirements following industry standards.</div>
+                        </div>
+                        <div className="bg-background/50 p-3 rounded border">
+                          <div className="font-medium text-primary mb-1">🏗️ Phase 2: Technical Design</div>
+                          <div className="text-muted-foreground">Transforms requirements into architectural decisions, component designs, data models, and technical specifications with diagrams.</div>
+                        </div>
+                        <div className="bg-background/50 p-3 rounded border">
+                          <div className="font-medium text-primary mb-1">✅ Phase 3: Implementation Tasks</div>
+                          <div className="text-muted-foreground">Breaks down the design into actionable development tasks with clear deliverables, priority, and requirement traceability.</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
               {/* Top Panel: Current Phase Status */}
-              <Card className="h-fit">
+              <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center justify-between text-base">
                     <div className="flex items-center gap-2">
                       <Play className="h-4 w-4" />
-                      {workflow.currentPhase === 'requirements' && 'Requirements Generation'}
-                      {workflow.currentPhase === 'design' && 'Design Generation'}
-                      {workflow.currentPhase === 'tasks' && 'Tasks Generation'}
+                      {workflow.currentPhase === 'requirements' && 'Step 1: Requirements Generation'}
+                      {workflow.currentPhase === 'design' && 'Step 2: Design Generation'}
+                      {workflow.currentPhase === 'tasks' && 'Step 3: Tasks Generation'}
                       {workflow.currentPhase === 'complete' && 'Workflow Complete'}
                     </div>
                     <div className="flex items-center gap-2">
-                      {/* Phase-specific action buttons */}
-                      {workflow.currentPhase !== 'complete' && (
+                      {/* Phase-specific action buttons - only show if no content exists for current phase */}
+                      {workflow.currentPhase !== 'complete' && !hasContentForCurrentPhase() && (
                         <>
                           <Button 
                             onClick={() => {
@@ -460,6 +572,20 @@ export default function Home() {
                           </Button>
                         </>
                       )}
+                      
+                      {/* Management buttons when content exists */}
+                      {hasContentForCurrentPhase() && (
+                        <Button 
+                          onClick={handleBackToPrompt} 
+                          variant="outline" 
+                          size="sm"
+                          disabled={workflow.isGenerating}
+                          className="min-w-[180px]"
+                        >
+                          <MessageSquare className="h-4 w-4 mr-2" />
+                          Edit Prompt & Regenerate
+                        </Button>
+                      )}
                     </div>
                   </CardTitle>
                 </CardHeader>
@@ -496,30 +622,30 @@ export default function Home() {
                           </Button>
                         </div>
                       )}
-                      {workflow.state.requirements && !workflow.error ? (
+                      {workflow.state.requirements && workflow.state.requirements.trim() && !workflow.error ? (
                         <>
-                          <div className="prose prose-sm max-w-none">
-                            <div className="bg-muted/50 p-4 rounded-lg">
-                              <h4 className="font-semibold mb-2">Generated Requirements:</h4>
-                              <div className="whitespace-pre-wrap text-sm">{workflow.state.requirements}</div>
-                            </div>
-                          </div>
-                          
-                          {/* Approval Controls */}
-                          <div className="border-t pt-4">
+                          {/* Approval Controls - MOVED TO TOP */}
+                          <div className="border-b pb-4 mb-4">
                             <div className="flex items-center justify-between">
                               <div>
-                                <h4 className="font-semibold">Review Requirements</h4>
-                                <p className="text-sm text-muted-foreground">Approve to proceed to Design phase</p>
+                                <h4 className="font-semibold flex items-center gap-2">
+                                  <CheckCircle className="h-4 w-4 text-green-500" />
+                                  Requirements Generated - Review Required
+                                </h4>
+                                <p className="text-sm text-muted-foreground">Review the generated content below, then approve to proceed to Design phase</p>
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-3">
                                 <Button
-                                  variant="outline"
+                                  variant="destructive"
                                   onClick={() => {
                                     workflow.rejectCurrentPhase()
+                                    // Also clear the content for regeneration
+                                    workflow.resetWorkflow()
                                   }}
+                                  size="sm"
+                                  className="min-w-[140px]"
                                 >
-                                  Reject & Regenerate
+                                  Reject & Clear Content
                                 </Button>
                                 <Button
                                   onClick={() => {
@@ -529,18 +655,49 @@ export default function Home() {
                                       workflow.proceedToNextPhase()
                                     }
                                   }}
+                                  className="bg-green-600 hover:bg-green-700 min-w-[180px]"
+                                  size="sm"
                                 >
-                                  Approve & Continue to Design
+                                  ✓ Approve & Continue to Design
                                 </Button>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Collapsible Content */}
+                          <div className="bg-muted/50 rounded-lg">
+                            <div className="flex items-center justify-between p-4 border-b border-muted">
+                              <h4 className="font-semibold">Generated Requirements</h4>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setContentCollapsed(!contentCollapsed)}
+                                className="text-xs"
+                              >
+                                {contentCollapsed ? 'Show Full Content' : 'Collapse to Preview'}
+                              </Button>
+                            </div>
+                            <div className="p-4">
+                              <div className="whitespace-pre-wrap text-sm">
+                                {contentCollapsed 
+                                  ? workflow.state.requirements.split('\n').slice(0, 5).join('\n') + 
+                                    (workflow.state.requirements.split('\n').length > 5 ? '\n\n... (content collapsed, click "Show Full Content" above to expand)' : '')
+                                  : workflow.state.requirements
+                                }
                               </div>
                             </div>
                           </div>
                         </>
                       ) : (
                         <div className="text-center py-16 text-muted-foreground min-h-[300px] flex flex-col justify-center">
-                          <FileText className="h-8 w-8 mx-auto mb-2" />
-                          <div>No requirements generated yet</div>
-                          <div className="text-xs mt-1">Click Generate Requirements to start</div>
+                          <FileText className="h-8 w-8 mx-auto mb-4" />
+                          <div className="font-medium mb-2">Ready to Generate Requirements</div>
+                          <div className="text-sm mb-4 max-w-md mx-auto">
+                            This is <strong>Step 1 of 3</strong>. Click "Generate Requirements" above to create technical requirements based on your prompt.
+                          </div>
+                          <div className="text-xs text-muted-foreground/70">
+                            After generation, you'll review and approve before moving to Design phase.
+                          </div>
                         </div>
                       )}
                     </div>
@@ -549,27 +706,29 @@ export default function Home() {
                   {/* Similar blocks for Design and Tasks phases... */}
                   {workflow.currentPhase === 'design' && (
                     <div className="space-y-4">
-                      {workflow.state.design ? (
+                      {workflow.state.design && workflow.state.design.trim() ? (
                         <>
-                          <div className="prose prose-sm max-w-none">
-                            <div className="bg-muted/50 p-4 rounded-lg">
-                              <h4 className="font-semibold mb-2">Generated Design:</h4>
-                              <div className="whitespace-pre-wrap text-sm">{workflow.state.design}</div>
-                            </div>
-                          </div>
-                          
-                          <div className="border-t pt-4">
+                          {/* Approval Controls - AT TOP */}
+                          <div className="border-b pb-4 mb-4">
                             <div className="flex items-center justify-between">
                               <div>
-                                <h4 className="font-semibold">Review Design</h4>
-                                <p className="text-sm text-muted-foreground">Approve to proceed to Tasks phase</p>
+                                <h4 className="font-semibold flex items-center gap-2">
+                                  <CheckCircle className="h-4 w-4 text-green-500" />
+                                  Design Generated - Review Required
+                                </h4>
+                                <p className="text-sm text-muted-foreground">Review the generated design below, then approve to proceed to Tasks phase</p>
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-3">
                                 <Button
-                                  variant="outline"
-                                  onClick={() => workflow.rejectCurrentPhase()}
+                                  variant="destructive"
+                                  onClick={() => {
+                                    workflow.rejectCurrentPhase()
+                                    workflow.resetWorkflow()
+                                  }}
+                                  size="sm"
+                                  className="min-w-[140px]"
                                 >
-                                  Reject & Regenerate
+                                  Reject & Clear Content
                                 </Button>
                                 <Button
                                   onClick={() => {
@@ -578,18 +737,49 @@ export default function Home() {
                                       workflow.proceedToNextPhase()
                                     }
                                   }}
+                                  className="bg-green-600 hover:bg-green-700 min-w-[180px]"
+                                  size="sm"
                                 >
-                                  Approve & Continue to Tasks
+                                  ✓ Approve & Continue to Tasks
                                 </Button>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Collapsible Content */}
+                          <div className="bg-muted/50 rounded-lg">
+                            <div className="flex items-center justify-between p-4 border-b border-muted">
+                              <h4 className="font-semibold">Generated Design</h4>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setContentCollapsed(!contentCollapsed)}
+                                className="text-xs"
+                              >
+                                {contentCollapsed ? 'Show Full Content' : 'Collapse to Preview'}
+                              </Button>
+                            </div>
+                            <div className="p-4">
+                              <div className="whitespace-pre-wrap text-sm">
+                                {contentCollapsed 
+                                  ? workflow.state.design.split('\n').slice(0, 5).join('\n') + 
+                                    (workflow.state.design.split('\n').length > 5 ? '\n\n... (content collapsed, click "Show Full Content" above to expand)' : '')
+                                  : workflow.state.design
+                                }
                               </div>
                             </div>
                           </div>
                         </>
                       ) : (
                         <div className="text-center py-16 text-muted-foreground min-h-[300px] flex flex-col justify-center">
-                          <Layers className="h-8 w-8 mx-auto mb-2" />
-                          <div>No design generated yet</div>
-                          <div className="text-xs mt-1">Click Generate Design to start</div>
+                          <Layers className="h-8 w-8 mx-auto mb-4" />
+                          <div className="font-medium mb-2">Ready to Generate Design</div>
+                          <div className="text-sm mb-4 max-w-md mx-auto">
+                            This is <strong>Step 2 of 3</strong>. Click "Generate Design" above to create technical design based on approved requirements.
+                          </div>
+                          <div className="text-xs text-muted-foreground/70">
+                            After generation, you'll review and approve before moving to Tasks phase.
+                          </div>
                         </div>
                       )}
                     </div>
@@ -597,45 +787,78 @@ export default function Home() {
                   
                   {workflow.currentPhase === 'tasks' && (
                     <div className="space-y-4">
-                      {workflow.state.tasks ? (
+                      {workflow.state.tasks && workflow.state.tasks.trim() ? (
                         <>
-                          <div className="prose prose-sm max-w-none">
-                            <div className="bg-muted/50 p-4 rounded-lg">
-                              <h4 className="font-semibold mb-2">Generated Tasks:</h4>
-                              <div className="whitespace-pre-wrap text-sm">{workflow.state.tasks}</div>
-                            </div>
-                          </div>
-                          
-                          <div className="border-t pt-4">
+                          {/* Approval Controls - AT TOP */}
+                          <div className="border-b pb-4 mb-4">
                             <div className="flex items-center justify-between">
                               <div>
-                                <h4 className="font-semibold">Review Tasks</h4>
-                                <p className="text-sm text-muted-foreground">Approve to complete the workflow</p>
+                                <h4 className="font-semibold flex items-center gap-2">
+                                  <CheckCircle className="h-4 w-4 text-green-500" />
+                                  Tasks Generated - Final Review Required
+                                </h4>
+                                <p className="text-sm text-muted-foreground">Review the implementation tasks below, then approve to complete the workflow</p>
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-3">
                                 <Button
-                                  variant="outline"
-                                  onClick={() => workflow.rejectCurrentPhase()}
+                                  variant="destructive"
+                                  onClick={() => {
+                                    workflow.rejectCurrentPhase()
+                                    workflow.resetWorkflow()
+                                  }}
+                                  size="sm"
+                                  className="min-w-[140px]"
                                 >
-                                  Reject & Regenerate
+                                  Reject & Clear Content
                                 </Button>
                                 <Button
                                   onClick={() => {
                                     workflow.approveCurrentPhase()
                                     workflow.proceedToNextPhase() // Complete workflow
                                   }}
+                                  className="bg-blue-600 hover:bg-blue-700 min-w-[200px]"
+                                  size="sm"
                                 >
-                                  Approve & Complete
+                                  ✓ Approve & Complete Workflow
                                 </Button>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Collapsible Content */}
+                          <div className="bg-muted/50 rounded-lg">
+                            <div className="flex items-center justify-between p-4 border-b border-muted">
+                              <h4 className="font-semibold">Generated Implementation Tasks</h4>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setContentCollapsed(!contentCollapsed)}
+                                className="text-xs"
+                              >
+                                {contentCollapsed ? 'Show Full Content' : 'Collapse to Preview'}
+                              </Button>
+                            </div>
+                            <div className="p-4">
+                              <div className="whitespace-pre-wrap text-sm">
+                                {contentCollapsed 
+                                  ? workflow.state.tasks.split('\n').slice(0, 5).join('\n') + 
+                                    (workflow.state.tasks.split('\n').length > 5 ? '\n\n... (content collapsed, click "Show Full Content" above to expand)' : '')
+                                  : workflow.state.tasks
+                                }
                               </div>
                             </div>
                           </div>
                         </>
                       ) : (
                         <div className="text-center py-16 text-muted-foreground min-h-[300px] flex flex-col justify-center">
-                          <List className="h-8 w-8 mx-auto mb-2" />
-                          <div>No tasks generated yet</div>
-                          <div className="text-xs mt-1">Click Generate Tasks to start</div>
+                          <List className="h-8 w-8 mx-auto mb-4" />
+                          <div className="font-medium mb-2">Ready to Generate Tasks</div>
+                          <div className="text-sm mb-4 max-w-md mx-auto">
+                            This is <strong>Step 3 of 3</strong>. Click "Generate Tasks" above to create implementation tasks based on approved design.
+                          </div>
+                          <div className="text-xs text-muted-foreground/70">
+                            After generation, you'll review and approve to complete the workflow.
+                          </div>
                         </div>
                       )}
                     </div>
