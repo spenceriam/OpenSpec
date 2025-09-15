@@ -303,13 +303,19 @@ export function useLocalStorage<T>(
     return () => {
       if (autoSaveTimeoutRef.current) {
         clearTimeout(autoSaveTimeoutRef.current)
-        // Force save on unmount if there are pending changes
+        // DON'T force save on unmount if reset flag is present - this was the bug!
         if (isInitializedRef.current) {
-          setStoredValue(value)
+          // Check for reset flag before saving
+          const justReset = typeof window !== 'undefined' && sessionStorage.getItem('openspec-just-reset')
+          if (!justReset) {
+            setStoredValue(value)
+          } else {
+            console.log(`=== LOCALSTORAGE HOOK (${key}): Skipping unmount save due to reset flag ===`)
+          }
         }
       }
     }
-  }, [value, setStoredValue])
+  }, [value, setStoredValue, key])
 
   // Auto-save before page unload
   useEffect(() => {
@@ -320,7 +326,11 @@ export function useLocalStorage<T>(
     const handleBeforeUnload = () => {
       if (autoSaveTimeoutRef.current) {
         clearTimeout(autoSaveTimeoutRef.current)
-        setStoredValue(value)
+        // Don't save during reset - this was also overriding our reset!
+        const justReset = sessionStorage.getItem('openspec-just-reset')
+        if (!justReset) {
+          setStoredValue(value)
+        }
       }
     }
 

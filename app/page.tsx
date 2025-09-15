@@ -157,40 +157,50 @@ export default function Home() {
     clearPrompt()
     clearContextFiles()
     
-    // Step 4: Clear ALL browser storage (nuclear option)
+    // Step 4: NUCLEAR STORAGE CLEARING - IMMEDIATE AND AGGRESSIVE
     if (typeof window !== 'undefined') {
-      console.log('=== CLEARING ALL STORAGE ===')
+      console.log('=== NUCLEAR STORAGE CLEARING INITIATED ===')
       
-      // Clear everything
       try {
-        // CRITICAL: Clear the workflow state key specifically first
-        localStorage.removeItem('openspec-workflow-state')
-        console.log('=== FORCE REMOVED WORKFLOW STATE ===')
-        
-        // Clear all storage
-        localStorage.clear()
-        sessionStorage.clear()
-        
-        // Double-check and remove any remaining openspec keys
-        Object.keys(localStorage).forEach(key => {
-          if (key.includes('openspec')) {
-            localStorage.removeItem(key)
-            console.log('=== FORCE REMOVED LOCAL KEY ===', key)
-          }
-        })
-        
-        Object.keys(sessionStorage).forEach(key => {
-          if (key.includes('openspec')) {
-            sessionStorage.removeItem(key)
-            console.log('=== FORCE REMOVED SESSION KEY ===', key)
-          }
-        })
-        
-        // Set the reset flag AFTER clearing everything
+        // FIRST: Set the reset flag BEFORE clearing to prevent auto-saves during reset
         sessionStorage.setItem('openspec-just-reset', 'true')
         
+        // SECOND: Force immediate removal of workflow state (the main culprit)
+        localStorage.removeItem('openspec-workflow-state')
+        
+        // THIRD: Clear ALL openspec-related keys IMMEDIATELY with triple-pass approach
+        for (let pass = 1; pass <= 3; pass++) {
+          console.log(`=== STORAGE CLEARING PASS ${pass} ===`)
+          
+          // Clear localStorage
+          const localKeys = Object.keys(localStorage)
+          localKeys.forEach(key => {
+            if (key.includes('openspec')) {
+              localStorage.removeItem(key)
+              console.log(`=== PASS ${pass}: REMOVED LOCAL KEY ===`, key)
+            }
+          })
+          
+          // Clear sessionStorage (except our reset flag)
+          const sessionKeys = Object.keys(sessionStorage)
+          sessionKeys.forEach(key => {
+            if (key.includes('openspec') && key !== 'openspec-just-reset') {
+              sessionStorage.removeItem(key)
+              console.log(`=== PASS ${pass}: REMOVED SESSION KEY ===`, key)
+            }
+          })
+        }
+        
+        // FOURTH: Nuclear option - clear entire localStorage
+        console.log('=== NUCLEAR OPTION: CLEARING ALL LOCALSTORAGE ===')
+        localStorage.clear()
+        
+        // FIFTH: Restore only the reset flag
+        sessionStorage.setItem('openspec-just-reset', 'true')
+        console.log('=== RESET FLAG SET FOR HOOK DETECTION ===')
+        
       } catch (error) {
-        console.error('=== STORAGE CLEAR ERROR ===', error)
+        console.error('=== NUCLEAR STORAGE CLEAR ERROR ===', error)
       }
     }
     
