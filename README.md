@@ -9,6 +9,8 @@ OpenSpec is an open-source web application that democratizes spec-driven develop
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
 [![OpenRouter](https://img.shields.io/badge/OpenRouter-API-orange?style=flat-square)](https://openrouter.ai/)
 
+Live: https://www.openspec.app/
+
 ## ✨ Features
 
 - 🤖 **AI-Powered Generation**: Use any AI model from OpenRouter's extensive catalog
