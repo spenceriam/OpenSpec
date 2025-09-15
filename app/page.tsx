@@ -18,40 +18,20 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { FileText, Download, Play, Key, Brain, MessageSquare, Check, X } from 'lucide-react'
 import { useModelStorage, usePromptStorage, useContextFilesStorage } from '@/hooks/useSessionStorage'
 import { useSimpleApiKeyStorage } from '@/hooks/useSimpleApiKeyStorage'
+import { useSpecWorkflow } from '@/hooks/useSpecWorkflow'
 import { DotPattern } from '@/components/magicui/dot-pattern'
-
-// This would normally come from your workflow state management
-const mockWorkflowState = {
-  currentPhase: 'requirements' as const,
-  phaseContent: {
-    requirements: '',
-    design: '',
-    tasks: ''
-  },
-  approvals: {
-    requirements: 'pending' as const,
-    design: 'pending' as const,
-    tasks: 'pending' as const
-  },
-  isGenerating: false,
-  lastUpdated: new Date().toISOString()
-}
 
 export default function Home() {
   const { value: apiKey, hasValidKey, setAPIKey, clearAPIKey } = useSimpleApiKeyStorage()
   
-  // Monitor storage changes
-  useEffect(() => {
-    console.log('Storage values changed:', {
-      apiKey: apiKey ? `${apiKey.substring(0, 8)}...` : 'null',
-      hasValidKey,
-      timestamp: new Date().getTime()
-    })
-  }, [apiKey, hasValidKey])
   const { selectedModel, setModel, clearModel } = useModelStorage()
   const { prompt, setPrompt, clearPrompt } = usePromptStorage()
   const { contextFiles, setFiles: setContextFiles, clearFiles: clearContextFiles } = useContextFilesStorage()
-  const [workflowState, setWorkflowState] = useState(mockWorkflowState)
+  
+  // Initialize the actual spec workflow
+  const workflow = useSpecWorkflow({
+    selectedModel,
+  })
   const [currentStep, setCurrentStep] = useState(1)
   const [showExportDialog, setShowExportDialog] = useState(false)
   const [showContinueDialog, setShowContinueDialog] = useState(false)
@@ -59,64 +39,17 @@ export default function Home() {
   const [apiKeyStatus, setApiKeyStatus] = useState<'loading' | 'success' | 'error' | null>(null)
   const [modelLoadStatus, setModelLoadStatus] = useState<'loading' | 'success' | 'error' | null>(null)
   const [forceUpdate, setForceUpdate] = useState(0)
+  const [isRegenerating, setIsRegenerating] = useState(false)
+  const [lastGenerationTime, setLastGenerationTime] = useState<number>(0)
+  const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
 
   const hasApiKey = Boolean(apiKey && hasValidKey)
   const hasModel = Boolean(selectedModel)
   const hasPrompt = prompt.trim().length > 10
   const canStartGeneration = hasApiKey && hasModel && hasPrompt
   
-  // Track when hasApiKey changes
-  useEffect(() => {
-    console.log('hasApiKey changed:', {
-      hasApiKey,
-      apiKey: apiKey ? 'present' : 'null',
-      hasValidKey,
-      calculation: `Boolean(${!!apiKey} && ${hasValidKey}) = ${hasApiKey}`,
-      timestamp: new Date().getTime()
-    })
-  }, [hasApiKey, apiKey, hasValidKey])
   
-  // Monitor sessionStorage changes
-  useEffect(() => {
-    const logStorageState = () => {
-      console.log('Current sessionStorage state:', {
-        apiKey: sessionStorage.getItem('openspec-api-key') ? 'present' : 'null',
-        tested: sessionStorage.getItem('openspec-api-key-tested'),
-        model: sessionStorage.getItem('openspec-selected-model') ? 'present' : 'null',
-        timestamp: new Date().getTime()
-      })
-    }
-    
-    // Log initial state
-    logStorageState()
-    
-    // Listen for storage events
-    const handleStorageChange = (e: StorageEvent) => {
-      console.log('SessionStorage changed:', {
-        key: e.key,
-        oldValue: e.oldValue ? `${e.oldValue.substring(0, 20)}...` : 'null',
-        newValue: e.newValue ? `${e.newValue.substring(0, 20)}...` : 'null'
-      })
-      logStorageState()
-    }
-    
-    window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
-  }, [])
 
-  // Debug logging for state tracking
-  console.log('Main page render state:', {
-    currentStep,
-    hasApiKey,
-    hasModel,
-    hasPrompt,
-    apiKeyStatus,
-    modelLoadStatus,
-    apiKeyValue: apiKey ? 'present' : 'missing',
-    hasValidKeyFromStorage: hasValidKey,
-    selectedModelName: selectedModel?.name || 'none',
-    renderTimestamp: new Date().getTime()
-  })
 
   // Check for existing session data on mount - ONLY ONCE
   useEffect(() => {
@@ -149,13 +82,11 @@ export default function Home() {
   }, [hasApiKey, selectedModel, prompt, contextFiles, hasCheckedSession])
 
   const handleApiKeyValidated = (isValid: boolean, key?: string) => {
-    console.log('handleApiKeyValidated called:', { isValid, keyProvided: !!key })
     if (isValid && key) {
       setApiKeyStatus('success')
       setCurrentStep(2)
       // Force component re-render after small delay to ensure storage hook updates
       setTimeout(() => {
-        console.log('Forcing component update after validation')
         setForceUpdate(prev => prev + 1)
       }, 200)
     } else {
@@ -184,9 +115,8 @@ export default function Home() {
     setHasCheckedSession(true) // Mark as checked so dialog won't show again
     
     // Reset workflow state if needed
-    setWorkflowState(mockWorkflowState)
+    workflow.resetWorkflow()
     
-    console.log('Session reset - all data cleared, starting fresh')
   }
 
   const handleContinue = () => {
@@ -195,18 +125,106 @@ export default function Home() {
     // Step is already set correctly in useEffect
   }
 
-  const handleGenerate = () => {
-    console.log('Starting generation with:', { apiKey, selectedModel, prompt, contextFiles })
+  const handleBackToPrompt = () => {
+    // If generation has been used at least once, just go back and allow regeneration
+    if (lastGenerationTime > 0) {
+      setCurrentStep(3)
+      setIsRegenerating(true)
+      return
+    }
+    
+    // Check if there's existing content that would be lost
+    const hasExistingContent = workflow.phaseContent.requirements || 
+                              workflow.phaseContent.design || 
+                              workflow.phaseContent.tasks
+    
+    if (hasExistingContent) {
+      setShowRegenerateConfirm(true)
+    } else {
+      // No content to lose, go back directly
+      setCurrentStep(3)
+      setIsRegenerating(false)
+    }
+  }
+
+  const handleConfirmRegenerate = () => {
+    // Clear existing workflow content
+    workflow.resetWorkflow()
+    setCurrentStep(3)
+    setIsRegenerating(true)
+    setShowRegenerateConfirm(false)
+  }
+
+  const handleCancelRegenerate = () => {
+    setShowRegenerateConfirm(false)
+  }
+
+  const handleGenerate = async () => {
+    
+    // Gentle rate limiting: prevent rapid double-clicks (minimum 2 seconds between generations)
+    const now = Date.now()
+    const timeSinceLastGeneration = now - lastGenerationTime
+    const minInterval = 2000 // 2 seconds
+    
+    if (timeSinceLastGeneration < minInterval && lastGenerationTime > 0) {
+      return // Silently prevent rapid generation requests
+    }
+    
+    setLastGenerationTime(now)
     setCurrentStep(4)
+    
+    // Extract feature name from prompt (first line or use default)
+    const promptLines = prompt.trim().split('\n')
+    const featureName = promptLines[0]?.replace(/^#+\s*/, '').trim() || 'Technical Specification'
+    
+    // Set up the workflow with current data using a Promise to ensure state is set
+    await new Promise<void>((resolve) => {
+      workflow.setFeatureName(featureName)
+      workflow.setDescription(prompt)
+      
+      // Add context files to workflow
+      workflow.clearContext()
+      contextFiles.forEach(file => {
+        workflow.addContextFile({
+          id: file.id,
+          name: file.name,
+          type: file.type as any,
+          content: file.content,
+          size: file.size,
+          lastModified: file.lastModified || Date.now(),
+          mimeType: file.mimeType || 'text/plain'
+        })
+      })
+      
+      // Use requestAnimationFrame to ensure React state updates are flushed
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          resolve()
+        })
+      })
+    })
+    
+    // Start generation for the requirements phase
+    try {
+      await workflow.generateCurrentPhase()
+    } catch (error) {
+      // Error handling is managed by the workflow hook
+    }
+    }, 100)
   }
 
   const handleExport = (options: any) => {
-    console.log('Exporting with options:', options)
     setShowExportDialog(false)
   }
 
   // Handle step navigation - allow going back to previous steps
   const handleStepClick = (step: number) => {
+    // Special handling for going back to Prompt from Generation step
+    if (currentStep === 4 && step === 3) {
+      handleBackToPrompt()
+      return
+    }
+    
     // Only allow navigation to completed steps or the current step
     if (step <= currentStep || (step === 1) || 
         (step === 2 && hasApiKey) || 
@@ -333,31 +351,33 @@ export default function Home() {
             </div>
 
           {/* Step 2: Model Selection */}
-          {(() => {
-            console.log('ModelSelector render check:', {
-              hasApiKey,
-              currentStep,
-              shouldRenderModelSelector: hasApiKey && currentStep === 2,
-              apiKeyValue: apiKey ? 'present' : 'missing',
-              hasValidKeyFromHook: hasValidKey
-            })
-            return hasApiKey && (
-              <div className={currentStep === 2 ? 'block' : 'hidden'}>
-                <ComponentErrorBoundary name="ModelSelector">
-                  <ModelSelector
-                    selectedModel={selectedModel}
-                    onModelSelect={handleModelSelected}
-                    onLoadingChange={(loading) => setModelLoadStatus(loading ? 'loading' : null)}
-                    onError={() => setModelLoadStatus('error')}
-                  />
-                </ComponentErrorBoundary>
-              </div>
-            )
-          })()}
+          {hasApiKey && (
+            <div className={currentStep === 2 ? 'block' : 'hidden'}>
+              <ComponentErrorBoundary name="ModelSelector">
+                <ModelSelector
+                  selectedModel={selectedModel}
+                  onModelSelect={handleModelSelected}
+                  onLoadingChange={(loading) => setModelLoadStatus(loading ? 'loading' : null)}
+                  onError={() => setModelLoadStatus('error')}
+                />
+              </ComponentErrorBoundary>
+            </div>
+          )}
 
           {/* Step 3: Prompt Input */}
           {hasModel && (
             <div className={currentStep === 3 ? 'block' : 'hidden'}>
+              {isRegenerating && (
+                <div className="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-lg">
+                  <div className="flex items-center gap-2 text-primary">
+                    <MessageSquare className="h-4 w-4" />
+                    <span className="text-sm font-medium">Regeneration Mode</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Edit your prompt or files below, then click Generate to create a new specification.
+                  </p>
+                </div>
+              )}
               <ComponentErrorBoundary name="PromptInput">
                 <PromptInput
                   prompt={prompt}
@@ -371,51 +391,163 @@ export default function Home() {
 
           {/* Step 4: Generation/Results */}
           {currentStep === 4 && (
-            <div className="flex-1 flex gap-4 min-h-0">
-              {/* Left Panel: Workflow Progress & Export */}
-              <div className="w-80 flex-shrink-0 space-y-4">
-                <Card className="h-fit">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-base">
+            <div className="flex-1 flex flex-col gap-4 min-h-0">
+              {/* Top Panel: Horizontal Workflow Progress */}
+              <Card className="h-fit">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center justify-between text-base">
+                    <div className="flex items-center gap-2">
                       <Play className="h-4 w-4" />
                       Generation Progress
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ComponentErrorBoundary name="WorkflowProgress">
-                      <WorkflowProgress workflowState={workflowState} />
-                    </ComponentErrorBoundary>
-                  </CardContent>
-                </Card>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        onClick={() => {
+                          workflow.clearError()
+                          workflow.generateCurrentPhase()
+                        }} 
+                        variant="default" 
+                        size="sm"
+                        disabled={workflow.isGenerating}
+                      >
+                        <Play className="h-4 w-4 mr-2" />
+                        {workflow.isGenerating ? 'Generating...' : 'Retry'}
+                      </Button>
+                      
+                      <Button 
+                        onClick={handleBackToPrompt} 
+                        variant="outline" 
+                        size="sm"
+                        disabled={workflow.isGenerating}
+                      >
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        Edit & Regenerate
+                      </Button>
+                      
+                      <Button 
+                        onClick={() => setShowExportDialog(true)} 
+                        variant="outline" 
+                        size="sm"
+                        disabled={!workflow.phaseContent.requirements}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Export
+                      </Button>
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {/* Horizontal Progress Steps */}
+                  <div className="flex items-center justify-center gap-8 mb-4 overflow-x-auto pb-2">
+                    {[
+                      { phase: 'requirements', label: 'Requirements', icon: FileText, description: 'EARS format requirements and user stories' },
+                      { phase: 'design', label: 'Design', icon: FileText, description: 'Technical design and architecture diagrams' },
+                      { phase: 'tasks', label: 'Tasks', icon: FileText, description: 'Implementation tasks and checkboxes' }
+                    ].map(({ phase, label, icon: Icon, description }, index) => {
+                      const isActive = workflow.currentPhase === phase
+                      const isCompleted = workflow.approvals[phase as keyof typeof workflow.approvals] === 'approved'
+                      const hasContent = !!workflow.phaseContent[phase as keyof typeof workflow.phaseContent]
+                      const isGeneratingThis = workflow.isGenerating && isActive
+                      
+                      return (
+                        <div key={phase} className="flex flex-col items-center min-w-0 flex-1 max-w-xs">
+                          {/* Step Circle */}
+                          <div className={`
+                            relative flex items-center justify-center w-12 h-12 rounded-full border-2 transition-all mb-3
+                            ${isActive 
+                              ? 'border-primary bg-primary text-primary-foreground' 
+                              : isCompleted
+                              ? 'border-green-600 bg-green-600 text-white'
+                              : hasContent
+                              ? 'border-orange-500 bg-orange-500 text-white'
+                              : 'border-muted bg-muted text-muted-foreground'
+                            }
+                          `}>
+                            {isGeneratingThis ? (
+                              <div className="animate-spin">
+                                <Play className="h-5 w-5" />
+                              </div>
+                            ) : isCompleted ? (
+                              <Check className="h-5 w-5" />
+                            ) : (
+                              <Icon className="h-5 w-5" />
+                            )}
+                            
+                            {/* Step number */}
+                            <div className="absolute -top-2 -right-2 w-6 h-6 bg-background border rounded-full flex items-center justify-center text-xs font-semibold">
+                              {index + 1}
+                            </div>
+                          </div>
+                          
+                          {/* Step Info */}
+                          <div className="text-center">
+                            <p className={`text-sm font-medium mb-1 ${
+                              isActive ? 'text-primary' 
+                                : isCompleted ? 'text-green-600'
+                                : hasContent ? 'text-orange-500'
+                                : 'text-muted-foreground'
+                            }`}>
+                              {label}
+                            </p>
+                            <p className="text-xs text-muted-foreground leading-tight">
+                              {description}
+                            </p>
+                            {hasContent && (
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {workflow.phaseContent[phase as keyof typeof workflow.phaseContent]?.split(' ').length || 0} words
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Connector */}
+                          {index < 2 && (
+                            <div className="absolute top-6 left-1/2 w-full h-0.5 bg-muted -z-10" style={{ transform: 'translateX(50%)' }} />
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                  
+                  {/* Overall Progress */}
+                  <div className="text-center">
+                    <div className="text-xs text-muted-foreground mb-2">
+                      {Object.values(workflow.approvals).filter(a => a === 'approved').length}/3 phases complete
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-2">
+                      <div 
+                        className="bg-primary h-2 rounded-full transition-all duration-300" 
+                        style={{ width: `${(Object.values(workflow.approvals).filter(a => a === 'approved').length / 3) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-                <Card className="h-fit">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base">Export Options</CardTitle>
-                    <CardDescription className="text-xs">
-                      Download your generated specification
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Button onClick={() => setShowExportDialog(true)} variant="outline" size="sm" className="w-full">
-                      <Download className="h-4 w-4 mr-2" />
-                      Export Specification
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Right Panel: Content Preview */}
+              {/* Bottom Panel: Content Preview */}
               <Card className="flex-1 min-w-0">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">
-                    {workflowState.currentPhase.charAt(0).toUpperCase() + workflowState.currentPhase.slice(1)} Preview
+                    {workflow.currentPhase.charAt(0).toUpperCase() + workflow.currentPhase.slice(1)} Preview
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="h-[calc(100vh-320px)]">
+                <CardContent className="h-[calc(100vh-400px)]">
+                  {/* Error Display */}
+                  {workflow.error && (
+                    <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+                      <div className="flex items-center gap-2 text-destructive">
+                        <X className="h-4 w-4" />
+                        <span className="text-sm font-medium">Generation Error</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {workflow.error}
+                      </p>
+                    </div>
+                  )}
+                  
                   <div className="h-full overflow-auto">
                     <ComponentErrorBoundary name="MarkdownPreview">
                       <MarkdownPreview
-                        content={workflowState.phaseContent[workflowState.currentPhase] || '# Generating content...\n\nYour specification is being created. This will appear here once generation begins.'}
+                        content={workflow.phaseContent[workflow.currentPhase] || (workflow.isGenerating ? '# Generating content...\n\nYour specification is being created. Please wait...' : '# Ready to Generate\n\nClick the Generate button to create your specification.')}
                         title=""
                         showDiagrams={true}
                         showStats={true}
@@ -433,9 +565,54 @@ export default function Home() {
       <ExportDialog
         open={showExportDialog}
         onOpenChange={setShowExportDialog}
-        workflowState={workflowState}
+        workflowState={{
+          currentPhase: workflow.currentPhase,
+          phaseContent: workflow.phaseContent,
+          approvals: {
+            requirements: workflow.approvals.requirements,
+            design: workflow.approvals.design,
+            tasks: workflow.approvals.tasks
+          },
+          isGenerating: workflow.isGenerating,
+          lastUpdated: new Date().toISOString()
+        }}
         onExport={handleExport}
       />
+
+      {/* Regenerate Confirmation Dialog */}
+      <Dialog open={showRegenerateConfirm} onOpenChange={setShowRegenerateConfirm}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-primary" />
+              Start Over?
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              <div className="space-y-3">
+                <p>This will clear your current specification and let you create a new one.</p>
+                <p className="text-sm">
+                  You'll be able to edit your prompt and files before generating again.
+                </p>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={handleCancelRegenerate}
+              className="border-border text-foreground hover:bg-muted"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleConfirmRegenerate}
+              className="bg-primary hover:bg-primary/80 text-primary-foreground"
+            >
+              Yes, Start Over
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Continue/Start Over Dialog */}
       <Dialog open={showContinueDialog} onOpenChange={setShowContinueDialog}>

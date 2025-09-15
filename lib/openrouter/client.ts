@@ -83,19 +83,79 @@ export class OpenRouterClient {
     return response.data
   }
 
-  async generateCompletion(request: OpenRouterCompletionRequest): Promise<OpenRouterCompletionResponse> {
-    if (!request.model) {
-      throw new Error('Model is required')
-    }
-    
-    if (!request.messages || request.messages.length === 0) {
-      throw new Error('Messages are required')
+  async generateCompletion(request: OpenRouterCompletionRequest): Promise<OpenRouterCompletionResponse>
+  async generateCompletion(
+    model: string, 
+    systemPrompt: string, 
+    userPrompt: string, 
+    contextFiles?: any[], 
+    options?: any
+  ): Promise<string>
+  async generateCompletion(
+    requestOrModel: OpenRouterCompletionRequest | string,
+    systemPrompt?: string,
+    userPrompt?: string,
+    contextFiles?: any[],
+    options?: any
+  ): Promise<OpenRouterCompletionResponse | string> {
+    // Handle the object-based call (original signature)
+    if (typeof requestOrModel === 'object') {
+      const request = requestOrModel as OpenRouterCompletionRequest
+      if (!request.model) {
+        throw new Error('Model is required')
+      }
+      
+      if (!request.messages || request.messages.length === 0) {
+        throw new Error('Messages are required')
+      }
+
+      return this.makeRequest('/chat/completions', {
+        method: 'POST',
+        body: JSON.stringify(request),
+      })
     }
 
-    return this.makeRequest('/chat/completions', {
+    // Handle the parameter-based call (for /api/generate route)
+    const model = requestOrModel as string
+    if (!model || !systemPrompt || !userPrompt) {
+      throw new Error('Model, system prompt, and user prompt are required')
+    }
+
+    // Build messages array
+    const messages: OpenRouterMessage[] = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ]
+
+    // Add context files to user prompt if provided
+    if (contextFiles && contextFiles.length > 0) {
+      let contextContent = '\n\nContext Files:\n'
+      contextFiles.forEach(file => {
+        if (file.type !== 'image' && file.content) {
+          contextContent += `\n## ${file.name}:\n${file.content}\n`
+        }
+      })
+      messages[1].content += contextContent
+    }
+
+    const request: OpenRouterCompletionRequest = {
+      model,
+      messages,
+      max_tokens: options?.max_tokens || 8192,
+      temperature: options?.temperature || 0.3
+    }
+
+    const response = await this.makeRequest('/chat/completions', {
       method: 'POST',
       body: JSON.stringify(request),
     })
+
+    // Return just the content string for the parameter-based call
+    if (response.choices && response.choices[0] && response.choices[0].message) {
+      return response.choices[0].message.content
+    }
+    
+    throw new Error('Invalid response format from OpenRouter API')
   }
 
   private async makeRequest(endpoint: string, options: RequestInit = {}): Promise<any> {

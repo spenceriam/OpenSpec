@@ -61,43 +61,30 @@ export function ModelSelector({
 
   // Fetch available models
   const fetchModels = useCallback(async () => {
-    console.log('ModelSelector fetchModels: Starting with API key:', apiKey ? 'present' : 'missing')
-    
     if (!apiKey) {
-      console.log('ModelSelector fetchModels: No API key, setting error')
       setError('API key required to load models')
       return
     }
 
-    console.log('ModelSelector fetchModels: Setting loading state')
     setIsLoading(true)
     setError(null)
     onLoadingChange?.(true)
 
     try {
-      console.log('ModelSelector fetchModels: Creating OpenRouter client')
       const client = new OpenRouterClient(apiKey)
-      
-      console.log('ModelSelector fetchModels: Calling listModels')
       const fetchedModels = await client.listModels()
-      console.log('ModelSelector fetchModels: Received', fetchedModels?.length || 0, 'models')
       
       if (fetchedModels.length === 0) {
-        console.log('ModelSelector fetchModels: No models returned, setting error')
         setError('No models available with current API key')
         onError?.()
       } else {
-        console.log('ModelSelector fetchModels: Success, setting models')
         setModels(fetchedModels)
       }
     } catch (err) {
-      console.log('ModelSelector fetchModels: Error occurred:', err)
       const errorMessage = err instanceof Error ? err.message : 'Failed to load models'
       setError(errorMessage)
       onError?.()
-      console.error('Model loading error:', err)
     } finally {
-      console.log('ModelSelector fetchModels: Cleanup, setting loading false')
       setIsLoading(false)
       onLoadingChange?.(false)
     }
@@ -105,14 +92,9 @@ export function ModelSelector({
 
   // Load models when component mounts or API key changes
   useEffect(() => {
-    console.log('ModelSelector useEffect: API key changed, apiKey:', apiKey ? 'present' : 'missing')
-    console.log('ModelSelector useEffect: Current component state - models:', models.length, 'isLoading:', isLoading, 'error:', error)
-    
     if (apiKey) {
-      console.log('ModelSelector useEffect: API key present, calling fetchModels')
       fetchModels()
     } else {
-      console.log('ModelSelector useEffect: No API key, clearing models')
       setModels([])
       setError(null)
     }
@@ -340,7 +322,6 @@ export function ModelSelector({
   }
 
   if (!apiKey) {
-    console.log('ModelSelector rendering: No API key provided')
     return (
       <Card className={`model-selector ${className}`}>
         <CardContent className="pt-6">
@@ -355,7 +336,6 @@ export function ModelSelector({
     )
   }
 
-  console.log('ModelSelector rendering: API key present, models:', models.length, 'loading:', isLoading, 'error:', error)
 
   return (
     <Card className={`model-selector max-w-5xl ${className}`}>

@@ -31,6 +31,7 @@ const DEFAULT_SPEC_STATE: SpecState = {
 
 export interface UseSpecWorkflowOptions {
   autoSave?: boolean
+  selectedModel?: { id: string; name: string } | null
   onPhaseChange?: (newPhase: WorkflowPhase, oldPhase: WorkflowPhase) => void
   onGenerationStart?: (phase: WorkflowPhase) => void
   onGenerationComplete?: (phase: WorkflowPhase, content: string) => void
@@ -103,6 +104,7 @@ export interface UseSpecWorkflowReturn {
 export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWorkflowReturn {
   const {
     autoSave = true,
+    selectedModel,
     onPhaseChange,
     onGenerationStart,
     onGenerationComplete,
@@ -223,6 +225,17 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
       const systemPrompt = getSystemPromptForPhase(state.phase)
       const userPrompt = buildUserPrompt(state)
 
+      // Log workflow state for debugging
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Workflow generation state:', {
+          phase: state.phase,
+          featureName: state.featureName || 'EMPTY',
+          description: state.description ? `${state.description.length} chars` : 'EMPTY',
+          contextFiles: state.context.length,
+          contextFileNames: state.context.map(f => f.name)
+        })
+      }
+
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: {
@@ -230,7 +243,7 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
         },
         body: JSON.stringify({
           apiKey,
-          model: 'anthropic/claude-3.5-sonnet', // Default model
+          model: selectedModel?.id || 'anthropic/claude-3.5-sonnet', // Use selected model or default
           systemPrompt,
           userPrompt,
           contextFiles: state.context,
@@ -265,7 +278,7 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
       }))
       onError?.(err, state.phase)
     }
-  }, [hasValidKey, apiKey, state, setState, onGenerationStart, onGenerationComplete, onError])
+  }, [hasValidKey, apiKey, state, setState, onGenerationStart, onGenerationComplete, onError, selectedModel])
 
   // Refinement logic
   const refineCurrentPhase = useCallback(async (feedback: string) => {
@@ -316,7 +329,7 @@ Please update the ${state.phase} document based on this feedback while maintaini
         },
         body: JSON.stringify({
           apiKey,
-          model: 'anthropic/claude-3.5-sonnet',
+          model: selectedModel?.id || 'anthropic/claude-3.5-sonnet',
           systemPrompt,
           userPrompt,
           options: {
@@ -600,13 +613,13 @@ Please update the ${state.phase} document based on this feedback while maintaini
 function getSystemPromptForPhase(phase: WorkflowPhase): string {
   switch (phase) {
     case 'requirements':
-      return 'You are a requirements analyst generating EARS format requirements with user stories and acceptance criteria.'
+      return 'You are a requirements analyst generating comprehensive EARS format requirements with user stories and acceptance criteria. You will receive a feature description and any context files. Create detailed, actionable requirements following EARS patterns (When [trigger] the [system] shall [response]). Include user stories in the format "As a [role] I want [goal] so that [benefit]" with acceptance criteria.'
     case 'design':
-      return 'You are a system architect creating comprehensive design documents with Mermaid diagrams.'
+      return 'You are a system architect creating comprehensive technical design documents with Mermaid diagrams. Based on the provided requirements, create architectural designs, component diagrams, sequence diagrams, and technical specifications. Use Mermaid syntax for all diagrams.'
     case 'tasks':
-      return 'You are a technical lead creating implementation task lists with numbered checkboxes.'
+      return 'You are a technical lead creating detailed implementation task lists with numbered checkboxes. Based on the requirements and design, break down the work into specific, actionable development tasks with clear acceptance criteria and estimated effort.'
     default:
-      return 'You are a helpful assistant.'
+      return 'You are a helpful assistant creating technical specifications.'
   }
 }
 
@@ -624,7 +637,10 @@ function getRefinementPromptForPhase(phase: WorkflowPhase): string {
 }
 
 function buildUserPrompt(state: SpecState): string {
-  let prompt = `Feature: ${state.featureName}\n\nDescription:\n${state.description}`
+  let prompt = `Feature: ${state.featureName}
+
+Description:
+${state.description}`
 
   if (state.context.length > 0) {
     prompt += '\n\nContext Files:\n'

@@ -1,6 +1,23 @@
 // Core workflow types
 export type WorkflowPhase = 'requirements' | 'design' | 'tasks' | 'complete'
 
+// Workflow state interface for UI components
+export interface SpecWorkflowState {
+  currentPhase: WorkflowPhase
+  phaseContent: {
+    requirements: string
+    design: string
+    tasks: string
+  }
+  approvals: {
+    requirements: 'approved' | 'pending' | 'rejected' | 'needs_refinement'
+    design: 'approved' | 'pending' | 'rejected' | 'needs_refinement'
+    tasks: 'approved' | 'pending' | 'rejected' | 'needs_refinement'
+  }
+  isGenerating: boolean
+  lastUpdated: string
+}
+
 // Specification state interface
 export interface SpecState {
   phase: WorkflowPhase

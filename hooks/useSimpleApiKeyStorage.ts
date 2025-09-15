@@ -17,11 +17,6 @@ export function useSimpleApiKeyStorage() {
       
       setApiKeyState(key)
       setIsValidated(tested === 'true')
-      
-      console.log('SimpleApiKeyStorage initialized:', {
-        hasKey: !!key,
-        isValidated: tested === 'true'
-      })
     }
   }, [])
   
@@ -32,11 +27,6 @@ export function useSimpleApiKeyStorage() {
     const handleStorageChange = () => {
       const key = sessionStorage.getItem(API_KEY_STORAGE_KEY)
       const tested = sessionStorage.getItem(API_KEY_TESTED_KEY)
-      
-      console.log('SimpleApiKeyStorage: Storage changed, updating state:', {
-        key: key ? 'present' : 'null',
-        tested: tested === 'true'
-      })
       
       setApiKeyState(key)
       setIsValidated(tested === 'true')
@@ -63,8 +53,6 @@ export function useSimpleApiKeyStorage() {
     }
     setApiKeyState(key)
     setIsValidated(true)
-    
-    console.log('SimpleApiKeyStorage: API key set and validated')
   }, [])
   
   const clearAPIKey = useCallback(() => {
@@ -76,8 +64,6 @@ export function useSimpleApiKeyStorage() {
     }
     setApiKeyState(null)
     setIsValidated(false)
-    
-    console.log('SimpleApiKeyStorage: API key cleared')
   }, [])
   
   // Simple validation check
