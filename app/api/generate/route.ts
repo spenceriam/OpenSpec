@@ -267,7 +267,8 @@ export async function POST(request: NextRequest) {
       userPromptType: typeof userPrompt,
       systemPromptLength: systemPrompt.length,
       userPromptLength: userPrompt.length,
-      apiKeyLength: apiKey.length
+      apiKeyLength: apiKey.length,
+      apiKeyPreview: `${apiKey.substring(0, 10)}...${apiKey.substring(apiKey.length - 4)}`
     })
     
     const clamped = clampPrompts(systemPrompt, userPrompt, assumedContextLimit, maxOutput)
@@ -295,6 +296,11 @@ export async function POST(request: NextRequest) {
       [], // Always empty - context is embedded in user prompt
       { ...options, max_tokens: maxOutput }
     )
+    
+    console.log('=== OPENROUTER SUCCESS ===', {
+      contentLength: typeof completion === 'string' ? completion.length : 'not string',
+      contentPreview: typeof completion === 'string' ? completion.substring(0, 100) : completion
+    })
 
     // Return successful response
     return NextResponse.json(
