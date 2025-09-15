@@ -360,15 +360,54 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
       }
 
       const systemPrompt = getSystemPromptForPhase(state.phase)
-      const userPrompt = buildUserPrompt(directState as SpecState)
+      let userPrompt = buildUserPrompt(directState as SpecState)
 
+      // Estimate token count (rough approximation: ~4 chars per token)
+      const estimatedTokens = Math.ceil((systemPrompt.length + userPrompt.length) / 4)
+      const maxTokens = 8192 // max output tokens we're requesting
+      const modelContextLimit = 32000 // leaving some buffer from 32768
+      
       console.log('=== DIRECT GENERATION ===', {
         featureName,
         description: description.substring(0, 100) + '...',
         contextFiles: contextFiles.length,
-        userPrompt: userPrompt.substring(0, 300) + '...',
+        estimatedInputTokens: estimatedTokens,
+        userPromptLength: userPrompt.length,
         phase: state.phase
       })
+      
+      // Check if we're approaching token limits
+      if (estimatedTokens + maxTokens > modelContextLimit) {
+        console.warn('Token limit warning:', {
+          estimatedInput: estimatedTokens,
+          maxOutput: maxTokens,
+          total: estimatedTokens + maxTokens,
+          limit: modelContextLimit
+        })
+        
+        // For now, filter out image files if we're over limit
+        const filteredContextFiles = contextFiles.filter(file => file.type !== 'image/png' && file.type !== 'image/jpeg')
+        
+        if (filteredContextFiles.length !== contextFiles.length) {
+          console.log('Filtered out image files to reduce token count')
+          // Rebuild with filtered context
+          const filteredState = { ...directState, context: filteredContextFiles }
+          const filteredUserPrompt = buildUserPrompt(filteredState as SpecState)
+          const newEstimate = Math.ceil((systemPrompt.length + filteredUserPrompt.length) / 4)
+          
+          console.log('After filtering images:', {
+            originalTokens: estimatedTokens,
+            newTokens: newEstimate,
+            reduction: estimatedTokens - newEstimate
+          })
+          
+          // Use filtered data if still reasonable
+          if (newEstimate + maxTokens <= modelContextLimit) {
+            directState.context = filteredContextFiles
+            userPrompt = filteredUserPrompt
+          }
+        }
+      }
 
       const response = await fetch('/api/generate', {
         method: 'POST',
@@ -784,8 +823,17 @@ ${state.description}`
   if (state.context.length > 0) {
     prompt += '\n\nContext Files:\n'
     state.context.forEach(file => {
-      if (file.type !== 'image') {
-        prompt += `\n## ${file.name}:\n${file.content}\n`
+      if (file.type === 'image/png' || file.type === 'image/jpeg' || file.type?.startsWith('image/')) {
+        // For images, just mention them but don't include the content (base64 would be huge)
+        prompt += `\n## ${file.name} (Image File):\nThis is an image file (${file.type}) with ${file.size} bytes that provides visual context for the feature.\n`
+      } else if (file.type !== 'image') {
+        // For text files, include the content but limit size
+        const content = file.content?.toString() || ''
+        const maxContentLength = 2000 // Limit to ~500 tokens per file
+        const truncatedContent = content.length > maxContentLength 
+          ? content.substring(0, maxContentLength) + '\n\n[Content truncated due to length]'
+          : content
+        prompt += `\n## ${file.name}:\n${truncatedContent}\n`
       }
     })
   }
