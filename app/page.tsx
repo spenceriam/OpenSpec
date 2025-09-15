@@ -1029,9 +1029,59 @@ export default function Home() {
                         })}
                       </div>
                       
+                      {/* Debug: Add dummy data for testing */}
+                      {process.env.NODE_ENV === 'development' && (
+                        <div className="text-center py-4">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              // Populate dummy performance data for testing
+                              const dummyTiming = {
+                                requirements: { startTime: Date.now() - 15000, endTime: Date.now() - 10000, elapsed: 5000 },
+                                design: { startTime: Date.now() - 8000, endTime: Date.now() - 3000, elapsed: 5000 },
+                                tasks: { startTime: Date.now() - 2000, endTime: Date.now(), elapsed: 2000 }
+                              }
+                              const dummyApiResponses = {
+                                requirements: { model: 'test-model', tokens: { prompt: 1500, completion: 800, total: 2300 }, cost: { prompt: 0.0045, completion: 0.012, total: 0.0165 }, duration: 5000, timestamp: Date.now() - 10000 },
+                                design: { model: 'test-model', tokens: { prompt: 2200, completion: 1200, total: 3400 }, cost: { prompt: 0.0066, completion: 0.018, total: 0.0246 }, duration: 5000, timestamp: Date.now() - 3000 },
+                                tasks: { model: 'test-model', tokens: { prompt: 1800, completion: 600, total: 2400 }, cost: { prompt: 0.0054, completion: 0.009, total: 0.0144 }, duration: 2000, timestamp: Date.now() }
+                              }
+                              
+                              // Update workflow state with dummy data using available methods
+                              // Note: This is a development-only hack to test the UI
+                              workflow.updatePhaseContent('requirements', 'Dummy requirements content for testing...');
+                              workflow.updatePhaseContent('design', 'Dummy design content for testing...');
+                              workflow.updatePhaseContent('tasks', 'Dummy tasks content for testing...');
+                              workflow.setCurrentPhase('complete');
+                              
+                              // Force a state update with performance data
+                              // Note: This directly modifies localStorage for testing
+                              const currentState = JSON.parse(localStorage.getItem('openspec-workflow-state') || '{}');
+                              const updatedState = {
+                                ...currentState,
+                                phase: 'complete',
+                                requirements: 'Dummy requirements content for testing...',
+                                design: 'Dummy design content for testing...',
+                                tasks: 'Dummy tasks content for testing...',
+                                timing: dummyTiming,
+                                apiResponses: dummyApiResponses
+                              };
+                              localStorage.setItem('openspec-workflow-state', JSON.stringify(updatedState));
+                              
+                              // Force a page reload to pick up the new data
+                              window.location.reload();
+                            }}
+                            className="text-xs"
+                          >
+                            🧪 Add Test Performance Data
+                          </Button>
+                        </div>
+                      )}
+                      
                       {/* Action Buttons */}
                       <div className="flex items-center justify-center gap-4 pt-6 border-t">
-                        <Button 
+                        <Button
                           onClick={async () => {
                             try {
                               // Extract feature name from prompt

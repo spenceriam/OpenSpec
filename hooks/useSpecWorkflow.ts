@@ -164,7 +164,7 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
   // API key management
   const { value: apiKey, hasValidKey } = useSimpleApiKeyStorage()
 
-  // Persistent state management
+  // Persistent state management with robust data migration
   const {
     value: state,
     setValue: setState,
@@ -174,14 +174,54 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
     defaultValue: DEFAULT_SPEC_STATE,
     autoSave,
     validateData: (data): data is SpecState => {
-      return (
-        typeof data === 'object' &&
-        data !== null &&
-        'phase' in data &&
-        'featureName' in data &&
-        'description' in data &&
-        'approvals' in data
-      )
+      if (!data || typeof data !== 'object') return false
+      
+      // Check for required basic fields
+      const hasBasicFields = 'phase' in data && 'featureName' in data && 'description' in data && 'approvals' in data
+      if (!hasBasicFields) return false
+      
+      // Migrate old data that might be missing timing or apiResponses
+      const migratedData = data as any
+      
+      // Ensure timing structure exists
+      if (!migratedData.timing) {
+        migratedData.timing = {
+          requirements: { startTime: 0, endTime: 0, elapsed: 0 },
+          design: { startTime: 0, endTime: 0, elapsed: 0 },
+          tasks: { startTime: 0, endTime: 0, elapsed: 0 }
+        }
+      } else {
+        // Fill in missing timing entries
+        ['requirements', 'design', 'tasks'].forEach(phase => {
+          if (!migratedData.timing[phase]) {
+            migratedData.timing[phase] = { startTime: 0, endTime: 0, elapsed: 0 }
+          }
+        })
+      }
+      
+      // Ensure apiResponses structure exists
+      if (!migratedData.apiResponses) {
+        migratedData.apiResponses = {
+          requirements: null,
+          design: null,
+          tasks: null
+        }
+      } else {
+        // Fill in missing apiResponse entries
+        ['requirements', 'design', 'tasks'].forEach(phase => {
+          if (!(phase in migratedData.apiResponses)) {
+            migratedData.apiResponses[phase] = null
+          }
+        })
+      }
+      
+      console.log('[DataMigration] Validated and migrated data:', {
+        hasBasicFields,
+        timing: migratedData.timing,
+        apiResponses: migratedData.apiResponses
+      })
+      
+      return true
     }
   })
 
