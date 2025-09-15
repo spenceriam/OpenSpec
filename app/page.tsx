@@ -108,7 +108,20 @@ export default function Home() {
     
     // Reset workflow state if needed
     workflow.resetWorkflow()
+  }
+
+  const handleClearAllData = () => {
+    // Clear ALL session storage
+    if (typeof window !== 'undefined') {
+      sessionStorage.clear()
+      localStorage.clear()
+    }
     
+    // Reset all state
+    handleResetAndStartFresh()
+    
+    // Force page reload to ensure clean state
+    window.location.reload()
   }
 
   const handleContinue = () => {
@@ -257,9 +270,20 @@ export default function Home() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex-1 flex flex-col relative z-10">
         {/* Compact Hero Section */}
         <div className="text-center mb-4">
-          <h2 className="text-xl font-bold text-foreground mb-1">
-            Generate Technical Specifications
-          </h2>
+          <div className="flex justify-between items-center mb-2">
+            <div></div>
+            <h2 className="text-xl font-bold text-foreground">
+              Generate Technical Specifications
+            </h2>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleClearAllData}
+              className="text-xs"
+            >
+              Clear All Data
+            </Button>
+          </div>
           <p className="text-xs text-muted-foreground max-w-xl mx-auto">
             Create comprehensive requirements, design documents, and tasks using AI models.
           </p>
@@ -472,7 +496,24 @@ export default function Home() {
                   {/* Phase content display with approval controls */}
                   {workflow.currentPhase === 'requirements' && (
                     <div className="space-y-4">
-                      {workflow.state.requirements ? (
+                      {workflow.error && (
+                        <div className="bg-destructive/10 border border-destructive/20 p-4 rounded-lg">
+                          <div className="flex items-center gap-2 text-destructive mb-2">
+                            <AlertCircle className="h-4 w-4" />
+                            <h4 className="font-semibold">Generation Failed</h4>
+                          </div>
+                          <p className="text-sm text-destructive/80">{workflow.error}</p>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => workflow.clearError()}
+                            className="mt-2"
+                          >
+                            Dismiss
+                          </Button>
+                        </div>
+                      )}
+                      {workflow.state.requirements && !workflow.error ? (
                         <>
                           <div className="prose prose-sm max-w-none">
                             <div className="bg-muted/50 p-4 rounded-lg">

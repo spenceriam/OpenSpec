@@ -604,10 +604,17 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
 
     } catch (error) {
       const err = error instanceof Error ? error : new Error('Unknown error')
+      console.error('=== GENERATION FAILED ===', {
+        phase: state.phase,
+        error: err.message,
+        stack: err.stack
+      })
       setState(prev => ({
         ...prev,
         isGenerating: false,
-        error: err.message
+        error: err.message,
+        // Don't set any content on API failure
+        [state.phase]: ''
       }))
       onError?.(err, state.phase)
     }
