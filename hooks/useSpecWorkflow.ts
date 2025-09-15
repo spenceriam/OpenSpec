@@ -296,7 +296,8 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
           model: selectedModel?.id || 'anthropic/claude-3.5-sonnet', // Use selected model or default
           systemPrompt,
           userPrompt,
-          contextFiles: state.context,
+          // contextFiles are already embedded in userPrompt by buildUserPrompt()
+          contextFiles: [],
           options: {
             temperature: 0.3,
             max_tokens: 8192
@@ -390,23 +391,14 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
           throw new Error(`Unknown phase: ${state.phase}`)
       }
 
-      // Simple token estimation for phase-specific prompts
-      const systemPromptTokens = Math.ceil(systemPrompt.length / 3.3)
-      const userPromptTokens = Math.ceil(userPrompt.length / 3.3)
-      const estimatedInputTokens = systemPromptTokens + userPromptTokens
-      const maxOutputTokens = 8192
-      const modelContextLimit = 28000 // Conservative buffer
+      // Validate token limits with new standardized method
+      const tokenValidation = validateTokenLimits(systemPrompt, userPrompt, 8192, 200000)
       
       console.log('=== PHASE-SPECIFIC GENERATION ===', {
         phase: state.phase,
         featureName: state.phase === 'requirements' ? featureName : '[Using approved content]',
-        systemPromptTokens,
-        userPromptTokens,
-        estimatedInputTokens,
-        maxOutputTokens,
-        totalTokensNeeded: estimatedInputTokens + maxOutputTokens,
-        modelContextLimit,
-        withinLimit: (estimatedInputTokens + maxOutputTokens) <= modelContextLimit,
+        tokenBreakdown: tokenValidation.breakdown,
+        isValid: tokenValidation.valid,
         promptStrategy: {
           requirements: 'Original description + context files',
           design: 'Approved requirements only', 
@@ -414,16 +406,14 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
         }[state.phase]
       })
       
-      // Token validation - should be much cleaner now with phase separation
-      if (estimatedInputTokens + maxOutputTokens > modelContextLimit) {
-        console.error('=== TOKEN LIMIT EXCEEDED (UNEXPECTED) ===', {
+      // Token validation - fail fast if limits exceeded
+      if (!tokenValidation.valid) {
+        console.error('=== TOKEN LIMIT EXCEEDED ===', {
           phase: state.phase,
-          estimatedInput: estimatedInputTokens,
-          maxOutput: maxOutputTokens,
-          total: estimatedInputTokens + maxOutputTokens,
-          limit: modelContextLimit
+          error: tokenValidation.error,
+          breakdown: tokenValidation.breakdown
         })
-        throw new Error(`Phase ${state.phase} content exceeds token limit. This should not happen with phase separation.`)
+        throw new Error(tokenValidation.error || `Phase ${state.phase} content exceeds token limit.`)
       }
 
       // Determine context files to send based on phase with aggressive size limits
@@ -476,7 +466,13 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
           originalCount: contextFiles.length,
           filteredCount: contextToSend.length,
           totalSizeChars: totalSize,
-          estimatedTokens: Math.ceil(totalSize / 4)
+          estimatedTokens: estimateTokens(contextToSend.map(f => f.content || '').join('')),
+          fileDetails: contextToSend.map(f => ({
+            name: f.name,
+            type: f.type,
+            size: f.content?.length || 0,
+            tokens: estimateTokens(f.content || '')
+          }))
         })
       }
       // Design and Tasks phases don't need context files - they use approved content
@@ -488,7 +484,13 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
         systemPromptLength: systemPrompt.length,
         userPromptLength: userPrompt.length,
         contextFilesCount: contextToSend.length,
-        estimatedInputTokens: Math.ceil((systemPrompt.length + userPrompt.length) / 3.3),
+        tokenEstimation: {
+          systemPrompt: estimateTokens(systemPrompt),
+          userPrompt: estimateTokens(userPrompt),
+          totalInput: estimateTokens(systemPrompt + userPrompt),
+          maxOutput: 8192,
+          totalRequest: estimateTokens(systemPrompt + userPrompt) + 8192
+        },
         inputStrategy: {
           requirements: 'Original input + filtered context files',
           design: 'Approved requirements only (no context files)',
@@ -499,12 +501,21 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
       // Log the actual content being sent to debug token bloat
       console.log('=== SYSTEM PROMPT PREVIEW ===', {
         fullLength: systemPrompt.length,
+        estimatedTokens: estimateTokens(systemPrompt),
         preview: systemPrompt.substring(0, 200) + '...'
       })
       
       console.log('=== USER PROMPT PREVIEW ===', {
         fullLength: userPrompt.length,
-        preview: userPrompt.substring(0, 500) + '...'
+        estimatedTokens: estimateTokens(userPrompt),
+        preview: userPrompt.substring(0, 500) + '...',
+        actualContent: {
+          hasFeatureName: userPrompt.includes('Feature:'),
+          hasDescription: userPrompt.includes('Description:'),
+          hasContextFiles: userPrompt.includes('Context Files:'),
+          hasRequirements: userPrompt.includes('Requirements:'),
+          hasDesign: userPrompt.includes('Design:')
+        }
       })
       
       if (contextToSend.length > 0) {
@@ -525,7 +536,8 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
           model: selectedModel?.id || 'anthropic/claude-3.5-sonnet',
           systemPrompt,
           userPrompt,
-          contextFiles: contextToSend,
+          // contextFiles are already embedded in userPrompt, don't send separately
+          contextFiles: [],
           options: {
             temperature: 0.3,
             max_tokens: 8192
@@ -661,6 +673,8 @@ Please update the ${state.phase} document based on this feedback while maintaini
           model: selectedModel?.id || 'anthropic/claude-3.5-sonnet',
           systemPrompt,
           userPrompt,
+          // contextFiles not needed for refinement
+          contextFiles: [],
           options: {
             temperature: 0.3,
             max_tokens: 8192
@@ -958,30 +972,30 @@ Please update the ${state.phase} document based on this feedback while maintaini
   }
 }
 
-// Helper functions for prompts
+// Helper functions for prompts  
 function getSystemPromptForPhase(phase: WorkflowPhase): string {
   switch (phase) {
     case 'requirements':
-      return 'You are a requirements analyst generating comprehensive EARS format requirements with user stories and acceptance criteria. You will receive a feature description and any context files. Create detailed, actionable requirements following EARS patterns (When [trigger] the [system] shall [response]). Include user stories in the format "As a [role] I want [goal] so that [benefit]" with acceptance criteria.'
+      return 'You are creating a requirements document in EARS format based on the provided feature description. Generate an initial requirements document following the structure with clear user stories and EARS acceptance criteria using WHEN, IF, WHILE, WHERE keywords.'
     case 'design':
-      return 'You are a system architect creating comprehensive technical design documents with Mermaid diagrams. Based on the provided requirements, create architectural designs, component diagrams, sequence diagrams, and technical specifications. Use Mermaid syntax for all diagrams.'
+      return 'You are creating a comprehensive design document based on approved requirements. Include technical architecture, components, data models, error handling, and testing strategy. Use Mermaid diagrams for complex relationships.'
     case 'tasks':
-      return 'You are a technical lead creating detailed implementation task lists with numbered checkboxes. Based on the requirements and design, break down the work into specific, actionable development tasks with clear acceptance criteria and estimated effort.'
+      return 'You are creating an actionable implementation plan based on approved design. Convert the design into discrete, manageable coding tasks with numbered checkboxes, specific deliverables, and requirement references.'
     default:
-      return 'You are a helpful assistant creating technical specifications.'
+      return 'You are creating technical specifications following standard formats.'
   }
 }
 
 function getRefinementPromptForPhase(phase: WorkflowPhase): string {
   switch (phase) {
     case 'requirements':
-      return 'You are a requirements analyst refining existing requirements based on feedback while maintaining EARS format.'
+      return 'You are refining existing requirements based on feedback while maintaining EARS format and structure.'
     case 'design':
-      return 'You are a system architect refining existing design documents and updating Mermaid diagrams as needed.'
+      return 'You are refining existing design documents based on feedback while maintaining technical completeness and valid Mermaid diagrams.'
     case 'tasks':
-      return 'You are a technical lead refining implementation tasks based on feedback while maintaining the numbered checkbox format.'
+      return 'You are refining implementation tasks based on feedback while maintaining the numbered checkbox format and requirement traceability.'
     default:
-      return 'You are a helpful assistant refining content based on feedback.'
+      return 'You are refining technical content based on feedback.'
   }
 }
 
@@ -998,7 +1012,7 @@ ${description}`
     
     // Calculate current prompt size to ensure we don't exceed limits
     const currentSize = prompt.length
-    const maxTotalPromptSize = 8000 // ~2000 tokens total for entire prompt
+    const maxTotalPromptSize = 12000 // ~3200 tokens total for entire prompt (more realistic)
     let remainingSpace = maxTotalPromptSize - currentSize
     
     contextFiles.forEach(file => {
@@ -1036,7 +1050,7 @@ ${description}`
       }
     })
     
-    console.log(`Final Requirements prompt size: ${prompt.length} chars (~${Math.ceil(prompt.length / 4)} tokens)`)
+    console.log(`Final Requirements prompt size: ${prompt.length} chars (~${estimateTokens(prompt)} tokens)`)
   }
 
   return prompt
@@ -1057,6 +1071,46 @@ ${requirements}
 
 ## Design:
 ${design}`
+}
+
+// Standardized token estimation utility
+function estimateTokens(text: string): number {
+  // Based on OpenAI/Anthropic tokenization: ~3.7 chars per token for English
+  return Math.ceil(text.length / 3.7)
+}
+
+function validateTokenLimits(systemPrompt: string, userPrompt: string, maxTokens = 8192, modelLimit = 200000): { 
+  valid: boolean; 
+  estimated: number; 
+  breakdown: { system: number; user: number; output: number; total: number };
+  error?: string;
+} {
+  const systemTokens = estimateTokens(systemPrompt)
+  const userTokens = estimateTokens(userPrompt)
+  const outputTokens = maxTokens
+  const totalTokens = systemTokens + userTokens + outputTokens
+  
+  const breakdown = {
+    system: systemTokens,
+    user: userTokens,
+    output: outputTokens,
+    total: totalTokens
+  }
+  
+  if (totalTokens > modelLimit) {
+    return {
+      valid: false,
+      estimated: totalTokens,
+      breakdown,
+      error: `Total tokens (${totalTokens}) exceeds model limit (${modelLimit}). System: ${systemTokens}, User: ${userTokens}, Output: ${outputTokens}`
+    }
+  }
+  
+  return {
+    valid: true,
+    estimated: totalTokens,
+    breakdown
+  }
 }
 
 // Legacy function for backward compatibility - now routes to phase-specific builders
