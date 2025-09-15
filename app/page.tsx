@@ -210,7 +210,6 @@ export default function Home() {
     } catch (error) {
       // Error handling is managed by the workflow hook
     }
-    }, 100)
   }
 
   const handleExport = (options: any) => {
