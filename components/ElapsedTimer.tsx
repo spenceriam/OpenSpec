@@ -7,9 +7,11 @@ interface ElapsedTimerProps {
   startTime: number
   isRunning: boolean
   className?: string
+  showIcon?: boolean
+  compact?: boolean
 }
 
-export function ElapsedTimer({ startTime, isRunning, className = '' }: ElapsedTimerProps) {
+export function ElapsedTimer({ startTime, isRunning, className = '', showIcon = true, compact = false }: ElapsedTimerProps) {
   const [elapsed, setElapsed] = useState(0)
 
   useEffect(() => {
@@ -42,8 +44,8 @@ export function ElapsedTimer({ startTime, isRunning, className = '' }: ElapsedTi
 
   return (
     <div className={`flex items-center gap-1 text-xs text-muted-foreground animate-pulse ${className}`}>
-      <Clock className="h-3 w-3" />
-      <span>Elapsed: {formatElapsed(elapsed)}</span>
+      {showIcon && <Clock className="h-3 w-3" />}
+      <span>{compact ? formatElapsed(elapsed) : `Elapsed: ${formatElapsed(elapsed)}`}</span>
     </div>
   )
 }

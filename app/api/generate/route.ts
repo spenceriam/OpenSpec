@@ -102,17 +102,7 @@ function clampPrompts(
   const userTokens = estimateTokens(cleanUser)
   const totalInputTokens = systemTokens + userTokens
   
-  console.log('=== SERVER-SIDE TOKEN CLAMPING ===', {
-    originalSystem: systemPrompt.length,
-    originalUser: userPrompt.length,
-    cleanedSystem: cleanSystem.length,
-    cleanedUser: cleanUser.length,
-    systemTokens,
-    userTokens,
-    totalInputTokens,
-    inputBudget,
-    needsClamping: totalInputTokens > inputBudget
-  })
+  // Server-side token clamping applied
   
   // If within budget, return cleaned content
   if (totalInputTokens <= inputBudget) {
@@ -156,13 +146,7 @@ function clampPrompts(
   
   const finalTokens = estimateTokens(finalSystem + finalUser)
   
-  console.log('=== CLAMPING RESULTS ===', {
-    originalTokens: totalInputTokens,
-    finalTokens,
-    reduction: totalInputTokens - finalTokens,
-    finalSystemLength: finalSystem.length,
-    finalUserLength: finalUser.length
-  })
+  // Token clamping completed
   
   return {
     system: finalSystem,
@@ -173,12 +157,6 @@ function clampPrompts(
 }
 
 export async function POST(request: NextRequest) {
-  console.log('=== API ROUTE STARTED ===', {
-    timestamp: new Date().toISOString(),
-    url: request.url,
-    method: request.method,
-    headers: Object.fromEntries(request.headers.entries())
-  })
   
   try {
     // Rate limiting
@@ -210,12 +188,7 @@ export async function POST(request: NextRequest) {
     let body: unknown
     try {
       body = await request.json()
-      console.log('=== REQUEST BODY PARSED ===', {
-        bodyKeys: Object.keys(body as Record<string, unknown>),
-        bodySize: JSON.stringify(body).length
-      })
     } catch (parseError) {
-      console.error('=== JSON PARSE ERROR ===', parseError)
       return NextResponse.json(
         {
           error: {
@@ -267,10 +240,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Create OpenRouter client
-    console.log('=== CREATING OPENROUTER CLIENT ===', {
-      apiKeyLength: apiKey.length,
-      apiKeyValid: apiKey.startsWith('sk-or-')
-    })
     
     const client = new OpenRouterClient(apiKey)
 
@@ -278,33 +247,13 @@ export async function POST(request: NextRequest) {
     const assumedContextLimit = 32768 // Conservative limit that works across most models
     const maxOutput = (options as any)?.max_tokens ?? 8192
     
-    console.log('=== BEFORE CLAMPING ===', {
-      model,
-      systemPromptType: typeof systemPrompt,
-      userPromptType: typeof userPrompt,
-      systemPromptLength: systemPrompt.length,
-      userPromptLength: userPrompt.length,
-      apiKeyLength: apiKey.length,
-      apiKeyPreview: `${apiKey.substring(0, 10)}...${apiKey.substring(apiKey.length - 4)}`
-    })
+    // Preparing prompts for clamping
     
     const clamped = clampPrompts(systemPrompt, userPrompt, assumedContextLimit, maxOutput)
     
-    console.log('=== SERVER CLAMPING APPLIED ===', {
-      model,
-      originalTokenEstimate: estimateTokens(systemPrompt + userPrompt),
-      clampedTokenEstimate: clamped.estimated,
-      wasClamped: clamped.clamped,
-      maxOutput
-    })
+    // Server clamping applied
 
-    // Generate completion with clamped prompts and empty contextFiles to avoid duplication
-    console.log('=== CALLING OPENROUTER API ===', {
-      model,
-      systemPromptLength: clamped.system.length,
-      userPromptLength: clamped.user.length,
-      options: { ...options, max_tokens: maxOutput }
-    })
+    // Generate completion with clamped prompts
     
     const completion = await client.generateCompletion(
       model,
@@ -314,10 +263,7 @@ export async function POST(request: NextRequest) {
       { ...options, max_tokens: maxOutput }
     )
     
-    console.log('=== OPENROUTER SUCCESS ===', {
-      contentLength: typeof completion === 'string' ? completion.length : 'not string',
-      contentPreview: typeof completion === 'string' ? completion.substring(0, 100) : completion
-    })
+    // OpenRouter API call successful
 
     // Return successful response
     return NextResponse.json(
@@ -336,26 +282,8 @@ export async function POST(request: NextRequest) {
     )
 
   } catch (error: unknown) {
-    console.error('=== DETAILED ERROR ANALYSIS ===', {
-      errorType: typeof error,
-      errorName: error instanceof Error ? error.name : 'Unknown',
-      errorMessage: error instanceof Error ? error.message : String(error),
-      errorStack: error instanceof Error ? error.stack : 'No stack',
-      errorObj: error,
-      errorKeys: error && typeof error === 'object' ? Object.keys(error) : []
-    })
-
     // Handle OpenRouter API errors
     const errorObj = error as { code?: string; message?: string; retryable?: boolean; status?: number }
-    
-    console.log('=== ERROR OBJECT ANALYSIS ===', {
-      hasCode: !!errorObj.code,
-      hasMessage: !!errorObj.message,
-      hasStatus: !!errorObj.status,
-      code: errorObj.code,
-      message: errorObj.message,
-      status: errorObj.status
-    })
     
     if (errorObj.code && errorObj.message) {
       const statusCode = getStatusCodeFromError(errorObj.code)
@@ -364,12 +292,7 @@ export async function POST(request: NextRequest) {
       const detailedMessage = (errorObj as any).message || errorObj.message
       const metadata = (errorObj as any).metadata
       
-      console.log('=== RETURNING OPENROUTER ERROR ===', {
-        originalCode: errorObj.code,
-        mappedStatus: statusCode,
-        message: detailedMessage,
-        metadata
-      })
+      // Returning OpenRouter error
       
       return NextResponse.json(
         {
@@ -385,9 +308,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle generic errors
-    console.log('=== RETURNING GENERIC ERROR ===', {
-      originalError: String(error)
-    })
     
     return NextResponse.json(
       {

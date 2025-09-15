@@ -146,15 +146,7 @@ function hasPromptChanged(storedDescription: string, newDescription: string, sto
   
   const significantChange = overlap < 0.4 || featureNameChanged
   
-  if (significantChange) {
-    console.log('=== PROMPT CHANGE DETECTED ===', {
-      storedFeature: storedFeatureName,
-      newFeature: newFeatureName,
-      overlap: (overlap * 100).toFixed(1) + '%',
-      featureNameChanged,
-      willReset: true
-    })
-  }
+  // Removed verbose logging for production
   
   return significantChange
 }
@@ -219,52 +211,19 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
 
   // Basic setters
   const setFeatureName = useCallback((name: string) => {
-    console.log('=== WORKFLOW setFeatureName CALLED ===', {
-      name: name.trim(),
-      currentState: state.featureName
-    })
-    setState(prev => {
-      console.log('=== WORKFLOW setState for featureName ===', {
-        prevState: prev.featureName,
-        newState: name.trim()
-      })
-      return { ...prev, featureName: name.trim() }
-    })
+    setState(prev => ({ ...prev, featureName: name.trim() }))
   }, [setState, state.featureName])
 
   const setDescription = useCallback((description: string) => {
-    console.log('=== WORKFLOW setDescription CALLED ===', {
-      description: description.substring(0, 100) + '...',
-      currentState: state.description?.substring(0, 100) + '...' || 'EMPTY'
-    })
-    setState(prev => {
-      console.log('=== WORKFLOW setState for description ===', {
-        prevState: prev.description?.substring(0, 50) + '...' || 'EMPTY',
-        newState: description.substring(0, 50) + '...'
-      })
-      return { ...prev, description }
-    })
+    setState(prev => ({ ...prev, description }))
   }, [setState, state.description])
 
   // Context file management
   const addContextFile = useCallback((file: ContextFile) => {
-    console.log('=== WORKFLOW addContextFile CALLED ===', {
-      fileName: file.name,
-      fileType: file.type,
-      currentContextLength: state.context.length
-    })
-    setState(prev => {
-      const newContext = [...prev.context.filter(f => f.id !== file.id), file]
-      console.log('=== WORKFLOW setState for addContextFile ===', {
-        prevContextLength: prev.context.length,
-        newContextLength: newContext.length,
-        fileAdded: file.name
-      })
-      return {
-        ...prev,
-        context: newContext
-      }
-    })
+    setState(prev => ({
+      ...prev,
+      context: [...prev.context.filter(f => f.id !== file.id), file]
+    }))
   }, [setState, state.context.length])
 
   const removeContextFile = useCallback((fileId: string) => {
@@ -275,16 +234,7 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
   }, [setState])
 
   const clearContext = useCallback(() => {
-    console.log('=== WORKFLOW clearContext CALLED ===', {
-      currentContextLength: state.context.length
-    })
-    setState(prev => {
-      console.log('=== WORKFLOW setState for clearContext ===', {
-        prevContextLength: prev.context.length,
-        newContextLength: 0
-      })
-      return { ...prev, context: [] }
-    })
+    setState(prev => ({ ...prev, context: [] }))
   }, [setState, state.context.length])
 
   // Content management
@@ -335,20 +285,9 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
       const systemPrompt = getSystemPromptForPhase(state.phase)
       const userPrompt = buildUserPrompt(state)
 
-      // Log workflow state for debugging
-      if (process.env.NODE_ENV === 'development') {
-        console.log('=== WORKFLOW GENERATION DEBUG ===', {
-          phase: state.phase,
-          featureName: state.featureName || 'EMPTY',
-          description: state.description || 'EMPTY', 
-          descriptionLength: state.description?.length || 0,
-          contextFiles: state.context.length,
-          contextFileNames: state.context.map(f => f.name),
-          contextFileTypes: state.context.map(f => f.type),
-          userPrompt: userPrompt.substring(0, 300) + '...',
-          fullState: { ...state }
-        })
-        console.log('=== FULL USER PROMPT ===', userPrompt)
+      // Basic validation in development
+      if (process.env.NODE_ENV === 'development' && !userPrompt) {
+        console.warn('Warning: Empty user prompt for generation')
       }
 
       const response = await fetch('/api/generate', {
@@ -406,6 +345,13 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
       return
     }
 
+    if (state.phase === 'complete') {
+      const error = new Error('Workflow is already complete')
+      setState(prev => ({ ...prev, error: error.message }))
+      onError?.(error, state.phase)
+      return
+    }
+
     // SMART PROMPT CHANGE DETECTION: Auto-reset if prompt significantly changed
     const hasExistingContent = state.requirements || state.design || state.tasks
     if (hasExistingContent && state.phase === 'requirements') {
@@ -417,8 +363,8 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
       )
       
       if (promptChanged) {
-        console.log('=== AUTO-RESET: Prompt changed significantly, clearing stale workflow data ===')
-        // Reset to clean state but preserve the new prompt data
+        // Auto-reset due to significant prompt change
+        const startTime = Date.now()
         setState(prev => ({
           ...DEFAULT_SPEC_STATE,
           phase: 'requirements', // Start fresh at requirements phase
@@ -426,22 +372,48 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
           description,
           context: contextFiles,
           isGenerating: true, // We're about to generate
-          error: null
+          error: null,
+          timing: {
+            ...DEFAULT_SPEC_STATE.timing,
+            [state.phase]: {
+              startTime,
+              endTime: 0,
+              elapsed: 0
+            }
+          }
         }))
         setRefinementHistory([])
         // Continue with generation using the clean state
       } else {
+        const startTime = Date.now()
         setState(prev => ({ 
           ...prev, 
           isGenerating: true, 
-          error: null 
+          error: null,
+          timing: {
+            ...prev.timing,
+            [state.phase]: {
+              startTime,
+              endTime: 0,
+              elapsed: 0
+            }
+          }
         }))
       }
     } else {
+      const startTime = Date.now()
       setState(prev => ({ 
         ...prev, 
         isGenerating: true, 
-        error: null 
+        error: null,
+        timing: {
+          ...prev.timing,
+          [state.phase]: {
+            startTime,
+            endTime: 0,
+            elapsed: 0
+          }
+        }
       }))
     }
 
@@ -460,12 +432,7 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
             ? description.substring(0, maxDescriptionLength) + '\n\n[Description truncated to fit token limits]'
             : description
           
-          console.log(`Requirements generation:`, {
-            originalDescriptionLength: description.length,
-            truncatedDescriptionLength: truncatedDescription.length,
-            contextFilesCount: contextFiles.length,
-            phase: state.phase
-          })
+          // Requirements generation with size limits
           
           // Filter and truncate context BEFORE calling buildRequirementsPrompt
           const maxFileSize = 2000 // Max 2KB per file (~500 tokens)
@@ -475,24 +442,15 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
           const contextToSend = contextFiles
             .filter(file => {
               // Skip images completely using robust detection
-              if (isImageLike(file)) {
-                console.warn(`Skipping image file: ${file.name} (type: ${file.type})`)
-                return false
-              }
+              if (isImageLike(file)) return false
               
               const fileSize = file.content?.length || 0
               
               // Skip files that are too large individually
-              if (fileSize > maxFileSize) {
-                console.warn(`Skipping large file ${file.name}: ${fileSize} chars (max ${maxFileSize})`) 
-                return false
-              }
+              if (fileSize > maxFileSize) return false
               
               // Skip files that would exceed total size limit
-              if (totalSize + fileSize > maxTotalSize) {
-                console.warn(`Skipping file ${file.name}: would exceed total limit (${totalSize + fileSize}/${maxTotalSize})`)
-                return false
-              }
+              if (totalSize + fileSize > maxTotalSize) return false
               
               totalSize += fileSize
               return true
@@ -528,6 +486,10 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
           userPrompt = buildTasksPrompt(state.requirements, state.design)
           break
           
+        case 'complete':
+          // Generation should not be called when workflow is complete
+          throw new Error('Workflow is already complete. Cannot generate additional content.')
+          
         default:
           throw new Error(`Unknown phase: ${state.phase}`)
       }
@@ -535,25 +497,10 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
       // Validate token limits with new standardized method
       const tokenValidation = validateTokenLimits(systemPrompt, userPrompt, 8192, 200000)
       
-      console.log('=== PHASE-SPECIFIC GENERATION ===', {
-        phase: state.phase,
-        featureName: state.phase === 'requirements' ? featureName : '[Using approved content]',
-        tokenBreakdown: tokenValidation.breakdown,
-        isValid: tokenValidation.valid,
-        promptStrategy: {
-          requirements: 'Original description + context files',
-          design: 'Approved requirements only', 
-          tasks: 'Approved requirements + design only'
-        }[state.phase]
-      })
+      // Token validation for current phase
       
       // Token validation - fail fast if limits exceeded
       if (!tokenValidation.valid) {
-        console.error('=== TOKEN LIMIT EXCEEDED ===', {
-          phase: state.phase,
-          error: tokenValidation.error,
-          breakdown: tokenValidation.breakdown
-        })
         throw new Error(tokenValidation.error || `Phase ${state.phase} content exceeds token limit.`)
       }
 
@@ -564,59 +511,20 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
         // No additional filtering needed here since it was done in the switch statement
         contextToSend = [] // Empty since context is embedded in userPrompt already
         
-        console.log(`Context files for Requirements phase: embedded in userPrompt to prevent duplication`)
+        // Context embedded in userPrompt to prevent duplication
       }
       // Design and Tasks phases don't need context files - they use approved content
       
-      console.log('=== SENDING TO API - DETAILED ANALYSIS ===', {
-        url: '/api/generate',
-        phase: state.phase,
-        modelId: selectedModel?.id || 'anthropic/claude-3.5-sonnet',
-        systemPromptLength: systemPrompt.length,
-        userPromptLength: userPrompt.length,
-        contextFilesCount: contextToSend.length,
-        tokenEstimation: {
-          systemPrompt: estimateTokens(systemPrompt),
-          userPrompt: estimateTokens(userPrompt),
-          totalInput: estimateTokens(systemPrompt + userPrompt),
-          maxOutput: 8192,
-          totalRequest: estimateTokens(systemPrompt + userPrompt) + 8192
-        },
-        inputStrategy: {
-          requirements: 'Original input + filtered context files',
-          design: 'Approved requirements only (no context files)',
-          tasks: 'Approved requirements + design (no context files)'
-        }[state.phase]
-      })
+      // Sending to API with token-validated prompts
       
-      // Log the actual content being sent to debug token bloat
-      console.log('=== SYSTEM PROMPT PREVIEW ===', {
-        fullLength: systemPrompt.length,
-        estimatedTokens: estimateTokens(systemPrompt),
-        preview: systemPrompt.substring(0, 200) + '...'
-      })
+      // Content prepared for API call
       
-      console.log('=== USER PROMPT PREVIEW ===', {
-        fullLength: userPrompt.length,
-        estimatedTokens: estimateTokens(userPrompt),
-        preview: userPrompt.substring(0, 500) + '...',
-        actualContent: {
-          hasFeatureName: userPrompt.includes('Feature:'),
-          hasDescription: userPrompt.includes('Description:'),
-          hasContextFiles: userPrompt.includes('Context Files:'),
-          hasRequirements: userPrompt.includes('Requirements:'),
-          hasDesign: userPrompt.includes('Design:')
-        }
-      })
-      
-      if (contextToSend.length > 0) {
-        console.log('=== CONTEXT FILES BEING SENT ===', contextToSend.map(f => ({
-          name: f.name,
-          type: f.type,
-          contentLength: f.content?.length || 0
-        })))
-      }
-      
+      // Create a timeout for the API request (3 minutes)
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => {
+        controller.abort()
+      }, 180000) // 3 minutes
+
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: {
@@ -633,19 +541,17 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
             temperature: 0.3,
             max_tokens: 8192
           }
-        })
+        }),
+        signal: controller.signal
       })
 
-      console.log('=== API RESPONSE STATUS ===', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        headers: Object.fromEntries(response.headers.entries())
-      })
+      // Clear the timeout since we got a response
+      clearTimeout(timeoutId)
+
+      // API response received
 
       if (!response.ok) {
         const errorText = await response.text()
-        console.error('=== API ERROR RESPONSE ===', errorText)
         let errorData
         try {
           errorData = JSON.parse(errorText)
@@ -656,24 +562,13 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
       }
 
       const responseText = await response.text()
-      console.log('=== RAW API RESPONSE ===', {
-        responseLength: responseText.length,
-        firstChars: responseText.substring(0, 200)
-      })
       
       let responseData
       try {
         responseData = JSON.parse(responseText)
       } catch (error) {
-        console.error('=== JSON PARSE ERROR ===', error, responseText)
         throw new Error('Invalid JSON response from API')
       }
-      
-      console.log('=== PARSED API RESPONSE ===', {
-        hasContent: !!responseData.content,
-        contentLength: responseData.content?.length || 0,
-        responseKeys: Object.keys(responseData)
-      })
       
       const { content, usage, model } = responseData
       const endTime = Date.now()
@@ -739,17 +634,21 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
       onGenerationComplete?.(state.phase, content)
 
     } catch (error) {
-      const err = error instanceof Error ? error : new Error('Unknown error')
-      console.error('=== GENERATION FAILED ===', {
-        phase: state.phase,
-        error: err.message,
-        stack: err.stack
-      })
+      let errorMessage = 'Unknown error'
+      
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          errorMessage = 'Request timed out after 3 minutes. Please try again with a shorter prompt or simpler requirements.'
+        } else {
+          errorMessage = error.message
+        }
+      }
+      
+      const err = new Error(errorMessage)
       setState(prev => ({
         ...prev,
         isGenerating: false,
         error: err.message,
-        // Don't set any content on API failure
         [state.phase]: ''
       }))
       onError?.(err, state.phase)
@@ -932,23 +831,12 @@ Please update the ${state.phase} document based on this feedback while maintaini
 
   // Utility functions - AGGRESSIVE RESET
   const reset = useCallback(() => {
-    console.log('=== AGGRESSIVE WORKFLOW RESET CALLED ===', {
-      beforeReset: {
-        phase: state.phase,
-        requirements: !!state.requirements,
-        design: !!state.design,
-        tasks: !!state.tasks,
-        storageKey: 'openspec-workflow-state'
-      }
-    })
-    
     // Step 1: Reset state to default
     setState(DEFAULT_SPEC_STATE)
     setRefinementHistory([])
     
-    // Step 2: Force localStorage removal with multiple attempts
+    // Step 2: Force localStorage removal
     if (typeof window !== 'undefined') {
-      // Remove the specific workflow storage key
       localStorage.removeItem('openspec-workflow-state')
       sessionStorage.removeItem('openspec-workflow-state')
       
@@ -960,10 +848,7 @@ Please update the ${state.phase} document based on this feedback while maintaini
           keysToRemove.push(key)
         }
       }
-      keysToRemove.forEach(key => {
-        localStorage.removeItem(key)
-        console.log('=== REMOVED STORAGE KEY ===', key)
-      })
+      keysToRemove.forEach(key => localStorage.removeItem(key))
       
       // Also clear from sessionStorage
       const sessionKeysToRemove = []
@@ -973,22 +858,11 @@ Please update the ${state.phase} document based on this feedback while maintaini
           sessionKeysToRemove.push(key)
         }
       }
-      sessionKeysToRemove.forEach(key => {
-        sessionStorage.removeItem(key)
-        console.log('=== REMOVED SESSION KEY ===', key)
-      })
+      sessionKeysToRemove.forEach(key => sessionStorage.removeItem(key))
     }
     
     // Step 3: Force sync after delay
-    setTimeout(() => {
-      forceSync()
-      console.log('=== WORKFLOW RESET COMPLETED WITH FORCE SYNC ===')
-    }, 100)
-    
-    console.log('=== AGGRESSIVE RESET COMPLETED ===', {
-      afterReset: DEFAULT_SPEC_STATE,
-      clearedStorageKeys: 'all openspec keys'
-    })
+    setTimeout(() => forceSync(), 100)
   }, [setState, forceSync, state])
 
   const clearError = useCallback(() => {
@@ -1224,11 +1098,8 @@ ${description}`
     let remainingSpace = maxTotalPromptSize - currentSize
     
     contextFiles.forEach(file => {
-      // Skip if no space remaining
-      if (remainingSpace <= 100) {
-        console.warn(`Skipping context file ${file.name}: not enough remaining space`)
-        return
-      }
+        // Skip if no space remaining
+        if (remainingSpace <= 100) return
       
       if (file.type === 'image/png' || file.type === 'image/jpeg' || file.type?.startsWith('image/')) {
         // For images, just mention them but don't include the content
@@ -1251,14 +1122,12 @@ ${description}`
           if (fileSection.length <= remainingSpace) {
             prompt += fileSection
             remainingSpace -= fileSection.length
-          } else {
-            console.warn(`Skipping context file ${file.name}: would exceed size limit`)
           }
         }
       }
     })
     
-    console.log(`Final Requirements prompt size: ${prompt.length} chars (~${estimateTokens(prompt)} tokens)`)
+    // Requirements prompt built
   }
 
   return prompt

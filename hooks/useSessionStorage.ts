@@ -204,7 +204,6 @@ export function useSessionStorage(
       
       return false
     } catch (error) {
-      console.warn('API key test failed:', error)
       return false
     }
   }, [value, isValid])
@@ -312,11 +311,7 @@ export function useAPIKeyStorage(): UseSessionStorageReturn & {
   
   const sessionStorage = useSessionStorage('openspec-api-key', {
     validateKey: validateAPIKey,
-    onError: (error, operation) => {
-      console.warn(`API key ${operation} error:`, error)
-    },
     onStorageChange: (newValue, oldValue) => {
-      console.info('API key storage changed:', { newValue: !!newValue, oldValue: !!oldValue })
       // Don't automatically clear isAPITested here - let setAPIKey/clearAPIKey handle it
       if (!newValue && oldValue) {
         // Only clear test status when key is actually removed (not when setting)
@@ -334,7 +329,6 @@ export function useAPIKeyStorage(): UseSessionStorageReturn & {
   }, [sessionStorage.value])
 
   const setAPIKey = useCallback((key: string) => {
-    console.log('setAPIKey called with:', key ? 'key provided' : 'no key')
     if (!key.trim()) {
       sessionStorage.setValue(null)
       if (typeof window !== 'undefined') {
@@ -349,7 +343,6 @@ export function useAPIKeyStorage(): UseSessionStorageReturn & {
       window.sessionStorage.setItem('openspec-api-key-tested', 'true')
     }
     setIsAPITested(true)
-    console.log('setAPIKey completed, isAPITested set to true')
   }, [sessionStorage])
 
   const clearAPIKey = useCallback(() => {
@@ -362,14 +355,7 @@ export function useAPIKeyStorage(): UseSessionStorageReturn & {
 
   const hasValidKey = Boolean(sessionStorage.value && sessionStorage.isValid && isAPITested)
 
-  // Debug logging
-  console.log('useAPIKeyStorage state:', {
-    hasValue: Boolean(sessionStorage.value),
-    isValid: sessionStorage.isValid,
-    isAPITested,
-    hasValidKey,
-    apiKeyLength: sessionStorage.value?.length || 0
-  })
+  // API key storage state managed
 
   return {
     ...sessionStorage,
@@ -390,7 +376,7 @@ export function useModelStorage() {
         try {
           setStoredModel(JSON.parse(stored))
         } catch (error) {
-          console.warn('Failed to parse stored model:', error)
+          // Failed to parse stored model
         }
       }
     }
@@ -473,7 +459,6 @@ export function useContextFilesStorage() {
           const files = JSON.parse(stored)
           setStoredFiles(Array.isArray(files) ? files : [])
         } catch (error) {
-          console.warn('Failed to parse stored context files:', error)
           setStoredFiles([])
         }
       }

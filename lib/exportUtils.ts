@@ -19,6 +19,48 @@ interface SpecificationData {
 }
 
 /**
+ * Extract a meaningful project name from the AI-generated tasks content
+ * Looks for project titles, feature names, and other identifying patterns
+ */
+function extractProjectNameFromTasks(tasks: string, fallbackFeatureName: string): string {
+  if (!tasks) return fallbackFeatureName
+  
+  // Common patterns to look for in task content
+  const patterns = [
+    // Look for "# Project Name" or "## Project Name" at the beginning
+    /^#{1,2}\s*(.+?)$/m,
+    // Look for "Project:" or "Feature:" labels
+    /(?:Project|Feature):\s*(.+?)(?:\n|$)/i,
+    // Look for "Implementation Task List:" followed by a name
+    /Implementation Task List:\s*(.+?)(?:\n|$)/i,
+    // Look for common project structure indicators
+    /(?:Building|Creating|Developing|Implementing)\s+(?:a|an|the)?\s*(.+?)(?:\s+(?:application|app|system|platform|tool|component))?(?:\n|\.|,|$)/i,
+    // Look for task descriptions that start with action verbs
+    /^\s*\d+\.?\s*\[?[\s\-\*]*\]?\s*(?:Build|Create|Develop|Implement|Set up)\s+(.+?)(?:\s+for|\s+with|\s+using|\n|\.|$)/im
+  ]
+  
+  for (const pattern of patterns) {
+    const match = tasks.match(pattern)
+    if (match && match[1]) {
+      let projectName = match[1].trim()
+      // Clean up the extracted name
+      projectName = projectName
+        .replace(/[\*\#\[\]\(\)]+/g, '') // Remove markdown formatting
+        .replace(/\s+/g, ' ') // Normalize whitespace
+        .replace(/^(a|an|the)\s+/i, '') // Remove articles
+        .trim()
+      
+      if (projectName.length > 5 && projectName.length < 80) {
+        return projectName
+      }
+    }
+  }
+  
+  // If no good match found, try to extract from feature name or fallback
+  return fallbackFeatureName || 'Technical Specification'
+}
+
+/**
  * Extract Mermaid diagram code blocks from markdown content
  */
 function extractMermaidDiagrams(content: string): string[] {
@@ -118,13 +160,16 @@ Generated with ${data.modelName || 'AI assistance'} | OpenSpec v1.0
 /**
  * Download the ZIP file with a user-friendly filename
  */
-export function downloadZipFile(blob: Blob, featureName: string = 'specification') {
+export function downloadZipFile(blob: Blob, featureName: string = 'specification', tasksContent?: string) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
   
-  // Create a clean filename from the feature name
-  const cleanName = featureName
+  // Extract project name from tasks content if available
+  const projectName = tasksContent ? extractProjectNameFromTasks(tasksContent, featureName) : featureName
+  
+  // Create a clean filename from the project name
+  const cleanName = projectName
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')

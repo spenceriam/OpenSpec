@@ -73,7 +73,6 @@ export default function Home() {
       // Remove the flag after a short delay to let all hooks process it
       setTimeout(() => {
         sessionStorage.removeItem('openspec-just-reset')
-        console.log('=== RESET FLAG REMOVED AFTER HOOK PROCESSING ===')
       }, 1000)
       
       return // Skip session restoration after reset
@@ -119,7 +118,6 @@ export default function Home() {
   }, [hasApiKey, apiKeyStatus, justDidReset])
 
   const handleApiKeyValidated = (isValid: boolean, key?: string) => {
-    console.log('=== API KEY VALIDATED ===', { isValid, hasKey: !!key })
     if (isValid && key) {
       setApiKeyStatus('success')
       setCurrentStep(2)
@@ -137,7 +135,6 @@ export default function Home() {
   }
 
   const handleResetAndStartFresh = () => {
-    console.log('=== NUCLEAR RESET INITIATED ===')
     
     // Step 1: Reset all UI state immediately
     setCurrentStep(1)
@@ -160,58 +157,35 @@ export default function Home() {
     clearPrompt()
     clearContextFiles()
     
-    // Step 4: NUCLEAR STORAGE CLEARING - IMMEDIATE AND AGGRESSIVE
+    // Step 4: Clear storage thoroughly
     if (typeof window !== 'undefined') {
-      console.log('=== NUCLEAR STORAGE CLEARING INITIATED ===')
-      
       try {
-        // FIRST: Set the reset flag BEFORE clearing to prevent auto-saves during reset
         sessionStorage.setItem('openspec-just-reset', 'true')
-        
-        // SECOND: Force immediate removal of workflow state (the main culprit)
         localStorage.removeItem('openspec-workflow-state')
         
-        // THIRD: Clear ALL openspec-related keys IMMEDIATELY with triple-pass approach
-        for (let pass = 1; pass <= 3; pass++) {
-          console.log(`=== STORAGE CLEARING PASS ${pass} ===`)
-          
-          // Clear localStorage
-          const localKeys = Object.keys(localStorage)
-          localKeys.forEach(key => {
-            if (key.includes('openspec')) {
-              localStorage.removeItem(key)
-              console.log(`=== PASS ${pass}: REMOVED LOCAL KEY ===`, key)
-            }
-          })
-          
-          // Clear sessionStorage (except our reset flag)
-          const sessionKeys = Object.keys(sessionStorage)
-          sessionKeys.forEach(key => {
-            if (key.includes('openspec') && key !== 'openspec-just-reset') {
-              sessionStorage.removeItem(key)
-              console.log(`=== PASS ${pass}: REMOVED SESSION KEY ===`, key)
-            }
-          })
-        }
+        // Clear all openspec-related keys
+        const localKeys = Object.keys(localStorage)
+        localKeys.forEach(key => {
+          if (key.includes('openspec')) {
+            localStorage.removeItem(key)
+          }
+        })
         
-        // FOURTH: Nuclear option - clear entire localStorage
-        console.log('=== NUCLEAR OPTION: CLEARING ALL LOCALSTORAGE ===')
+        const sessionKeys = Object.keys(sessionStorage)
+        sessionKeys.forEach(key => {
+          if (key.includes('openspec') && key !== 'openspec-just-reset') {
+            sessionStorage.removeItem(key)
+          }
+        })
+        
         localStorage.clear()
-        
-        // FIFTH: Restore only the reset flag
         sessionStorage.setItem('openspec-just-reset', 'true')
-        console.log('=== RESET FLAG SET FOR HOOK DETECTION ===')
-        
       } catch (error) {
-        console.error('=== NUCLEAR STORAGE CLEAR ERROR ===', error)
+        console.error('Storage clear error:', error)
       }
     }
-    
-    console.log('=== NUCLEAR RESET COMPLETE - RELOADING PAGE ===')
     // Force page reload to ensure completely clean state
-    setTimeout(() => {
-      window.location.reload()
-    }, 200)
+    setTimeout(() => window.location.reload(), 200)
   }
 
   const handleContinue = () => {
@@ -255,14 +229,6 @@ export default function Home() {
   }
 
   const handleGenerate = async () => {
-    console.log('=== HANDLE GENERATE DEBUG ===', {
-      prompt: prompt || 'EMPTY',
-      promptLength: prompt.length,
-      contextFiles: contextFiles.length,
-      contextFileNames: contextFiles.map(f => f.name),
-      hasApiKey: !!apiKey,
-      hasModel: !!selectedModel
-    })
     
     // Gentle rate limiting: prevent rapid double-clicks (minimum 2 seconds between generations)
     const now = Date.now()
@@ -280,12 +246,7 @@ export default function Home() {
     const promptLines = prompt.trim().split('\n')
     const featureName = promptLines[0]?.replace(/^#+\s*/, '').trim() || 'Technical Specification'
     
-    // FUNDAMENTAL FIX: Pass data directly to generation instead of relying on async state
-    console.log('=== DIRECT GENERATION APPROACH ===', {
-      featureName,
-      promptLength: prompt.length,
-      contextFilesCount: contextFiles.length
-    })
+    // Pass data directly to generation
     
     // Filter to text files only for generation context
     const textFiles = contextFiles.filter(file => 
@@ -294,11 +255,7 @@ export default function Home() {
       file.type !== 'image/jpeg'
     )
     
-    console.log('Filtered to text files for AI context:', {
-      originalFiles: contextFiles.length,
-      textFiles: textFiles.length,
-      filteredImages: contextFiles.length - textFiles.length
-    })
+    // Filter to text files for AI context
     
     const workflowContextFiles = textFiles.map(file => ({
       id: file.id,
@@ -572,18 +529,26 @@ export default function Home() {
                               variant="default" 
                               size="sm"
                               disabled={workflow.isGenerating}
+                              className="min-w-[160px]" 
                             >
                               <Play className="h-4 w-4 mr-2" />
-                              {workflow.isGenerating ? 'Generating...' : `Generate ${workflow.currentPhase.charAt(0).toUpperCase() + workflow.currentPhase.slice(1)}`}
+                              {workflow.isGenerating ? (
+                                <span className="flex items-center gap-2">
+                                  Generating
+                                  {workflow.state.timing[workflow.currentPhase]?.startTime && (
+                                    <ElapsedTimer 
+                                      startTime={workflow.state.timing[workflow.currentPhase].startTime}
+                                      isRunning={workflow.isGenerating}
+                                      className="text-xs text-primary-foreground"
+                                      showIcon={false}
+                                      compact={true}
+                                    />
+                                  )}
+                                </span>
+                              ) : (
+                                `Generate ${workflow.currentPhase.charAt(0).toUpperCase() + workflow.currentPhase.slice(1)}`
+                              )}
                             </Button>
-                            
-                            {/* Show elapsed time during generation */}
-                            {workflow.isGenerating && workflow.state.timing[workflow.currentPhase]?.startTime && (
-                              <ElapsedTimer 
-                                startTime={workflow.state.timing[workflow.currentPhase].startTime}
-                                isRunning={workflow.isGenerating}
-                              />
-                            )}
                           </div>
                           
                           <Button 
@@ -1070,7 +1035,7 @@ export default function Home() {
                               
                               // Create and download ZIP file
                               const zipBlob = await createSpecificationZip(specData)
-                              downloadZipFile(zipBlob, featureName)
+                              downloadZipFile(zipBlob, featureName, workflow.state.tasks)
                               
                             } catch (error) {
                               console.error('Export failed:', error)
