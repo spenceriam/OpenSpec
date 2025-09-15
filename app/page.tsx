@@ -95,21 +95,27 @@ export default function Home() {
     }
     
     // Set initial step based on what's already completed
-    if (hasApiKey && selectedModel && hasPromptData) {
-      setCurrentStep(3)
-      setApiKeyStatus('success')
-      setModelLoadStatus('success')
-    } else if (hasApiKey && selectedModel) {
-      setCurrentStep(3)
-      setApiKeyStatus('success')
-      setModelLoadStatus('success')
-    } else if (hasApiKey) {
-      setCurrentStep(2)
-      setApiKeyStatus('success')
+    // But don't change currentStep if workflow is in complete phase or actively generating
+    if (workflow.currentPhase === 'complete') {
+      // Always show step 4 when workflow is complete
+      setCurrentStep(4)
+    } else if (!workflow.isGenerating) {
+      if (hasApiKey && selectedModel && hasPromptData) {
+        setCurrentStep(3)
+        setApiKeyStatus('success')
+        setModelLoadStatus('success')
+      } else if (hasApiKey && selectedModel) {
+        setCurrentStep(3)
+        setApiKeyStatus('success')
+        setModelLoadStatus('success')
+      } else if (hasApiKey) {
+        setCurrentStep(2)
+        setApiKeyStatus('success')
+      }
     }
     
     setHasCheckedSession(true) // Mark that we've checked the session
-  }, [hasApiKey, selectedModel, prompt, contextFiles, hasCheckedSession, justDidReset])
+  }, [hasApiKey, selectedModel, prompt, contextFiles, hasCheckedSession, justDidReset, workflow.currentPhase, workflow.isGenerating])
 
   // Ensure API key status is set correctly when key is valid (but not after reset)
   useEffect(() => {
