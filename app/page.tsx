@@ -943,8 +943,8 @@ export default function Home() {
                           </CardHeader>
                           <CardContent className="space-y-3">
                             {['requirements', 'design', 'tasks'].map((phase) => {
-                              const timing = workflow.state.timing[phase as keyof typeof workflow.state.timing]
-                              const apiResponse = workflow.state.apiResponses[phase as keyof typeof workflow.state.apiResponses]
+                              const timing = workflow.state.timing?.[phase as keyof typeof workflow.state.timing]
+                              const apiResponse = workflow.state.apiResponses?.[phase as keyof typeof workflow.state.apiResponses]
                               if (!timing || !apiResponse) return null
                               
                               return (
@@ -978,7 +978,7 @@ export default function Home() {
                                   <span className="font-mono text-primary">
                                     {Math.round(
                                       (['requirements', 'design', 'tasks'] as const).reduce((total, phase) => 
-                                        total + (workflow.state.timing[phase]?.elapsed || 0), 0
+                                        total + (workflow.state.timing?.[phase]?.elapsed || 0), 0
                                       ) / 1000
                                     )}s
                                   </span>
@@ -987,19 +987,19 @@ export default function Home() {
                                   <span className="text-muted-foreground">Total Tokens: </span>
                                   <span className="font-mono text-primary">
                                     {(['requirements', 'design', 'tasks'] as const).reduce((total, phase) => 
-                                      total + (workflow.state.apiResponses[phase]?.tokens.total || 0), 0
+                                      total + (workflow.state.apiResponses?.[phase]?.tokens?.total || 0), 0
                                     ).toLocaleString()}
                                   </span>
                                 </div>
                                 {(['requirements', 'design', 'tasks'] as const).some(phase => 
-                                  workflow.state.apiResponses[phase]?.cost
+                                  workflow.state.apiResponses?.[phase]?.cost
                                 ) && (
                                   <div className="col-span-2">
                                     <span className="text-muted-foreground">Total Cost: </span>
                                     <span className="font-mono text-primary">
                                       ${
                                         (['requirements', 'design', 'tasks'] as const).reduce((total, phase) => 
-                                          total + (workflow.state.apiResponses[phase]?.cost?.total || 0), 0
+                                          total + (workflow.state.apiResponses?.[phase]?.cost?.total || 0), 0
                                         ).toFixed(4)
                                       }
                                     </span>
@@ -1057,14 +1057,14 @@ export default function Home() {
                                 tasks: workflow.state.tasks || '',
                                 modelName: selectedModel?.name || 'Unknown Model',
                                 timing: {
-                                  requirements: workflow.state.timing.requirements,
-                                  design: workflow.state.timing.design,
-                                  tasks: workflow.state.timing.tasks
+                                  requirements: workflow.state.timing?.requirements,
+                                  design: workflow.state.timing?.design,
+                                  tasks: workflow.state.timing?.tasks
                                 },
                                 tokens: {
-                                  requirements: workflow.state.apiResponses.requirements?.tokens.total,
-                                  design: workflow.state.apiResponses.design?.tokens.total,
-                                  tasks: workflow.state.apiResponses.tasks?.tokens.total
+                                  requirements: workflow.state.apiResponses?.requirements?.tokens?.total,
+                                  design: workflow.state.apiResponses?.design?.tokens?.total,
+                                  tasks: workflow.state.apiResponses?.tasks?.tokens?.total
                                 }
                               }
                               
