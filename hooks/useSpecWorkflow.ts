@@ -26,6 +26,18 @@ const DEFAULT_SPEC_STATE: SpecState = {
     requirements: false,
     design: false,
     tasks: false
+  },
+  // NEW: Timing tracking for each phase
+  timing: {
+    requirements: { startTime: 0, endTime: 0, elapsed: 0 },
+    design: { startTime: 0, endTime: 0, elapsed: 0 },
+    tasks: { startTime: 0, endTime: 0, elapsed: 0 }
+  },
+  // NEW: API response tracking for cost/token info
+  apiResponses: {
+    requirements: null,
+    design: null,
+    tasks: null
   }
 }
 
@@ -301,10 +313,19 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
 
     if (state.phase === 'complete') return
 
+    const startTime = Date.now()
     setState(prev => ({ 
       ...prev, 
       isGenerating: true, 
-      error: null 
+      error: null,
+      timing: {
+        ...prev.timing,
+        [state.phase]: {
+          startTime,
+          endTime: 0,
+          elapsed: 0
+        }
+      }
     }))
 
     onGenerationStart?.(state.phase)
@@ -654,7 +675,21 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
         responseKeys: Object.keys(responseData)
       })
       
-      const { content } = responseData
+      const { content, usage, model } = responseData
+      const endTime = Date.now()
+      const elapsed = endTime - (state.timing[state.phase]?.startTime || endTime)
+
+      // Calculate cost if usage data is available
+      let costInfo = undefined
+      if (usage && selectedModel?.pricing) {
+        const promptCost = (usage.prompt_tokens / 1000) * parseFloat(selectedModel.pricing.prompt)
+        const completionCost = (usage.completion_tokens / 1000) * parseFloat(selectedModel.pricing.completion)
+        costInfo = {
+          prompt: promptCost,
+          completion: completionCost,
+          total: promptCost + completionCost
+        }
+      }
 
       // Update state appropriately for each phase
       setState(prev => {
@@ -662,7 +697,29 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
           ...prev,
           [state.phase]: content,
           isGenerating: false,
-          error: null
+          error: null,
+          timing: {
+            ...prev.timing,
+            [state.phase]: {
+              startTime: prev.timing[state.phase]?.startTime || endTime - elapsed,
+              endTime,
+              elapsed
+            }
+          },
+          apiResponses: {
+            ...prev.apiResponses,
+            [state.phase]: {
+              model: model || selectedModel?.id || 'unknown',
+              tokens: usage ? {
+                prompt: usage.prompt_tokens || 0,
+                completion: usage.completion_tokens || 0,
+                total: usage.total_tokens || 0
+              } : { prompt: 0, completion: 0, total: 0 },
+              cost: costInfo,
+              duration: elapsed,
+              timestamp: endTime
+            }
+          }
         }
         
         // Only update feature metadata during requirements phase
@@ -848,6 +905,22 @@ Please update the ${state.phase} document based on this feedback while maintaini
     setState(prev => ({ ...prev, phase: nextPhase }))
     onPhaseChange?.(nextPhase, oldPhase)
   }, [canProceedToNext, nextPhase, state.phase, setState, onPhaseChange])
+
+  // NEW: Atomic approve and proceed operation to fix double-click issues
+  const approveAndProceed = useCallback(() => {
+    if (state.phase === 'complete' || !nextPhase) return
+
+    const oldPhase = state.phase
+    setState(prev => ({
+      ...prev,
+      approvals: {
+        ...prev.approvals,
+        [state.phase]: true
+      },
+      phase: nextPhase
+    }))
+    onPhaseChange?.(nextPhase, oldPhase)
+  }, [state.phase, nextPhase, setState, onPhaseChange])
 
   const goToPreviousPhase = useCallback(() => {
     if (!canGoBack || !previousPhase) return
@@ -1074,6 +1147,7 @@ Please update the ${state.phase} document based on this feedback while maintaini
     approveCurrentPhase,
     rejectCurrentPhase,
     proceedToNextPhase,
+    approveAndProceed,
     goToPreviousPhase,
     
     // Content management

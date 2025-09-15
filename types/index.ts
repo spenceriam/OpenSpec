@@ -18,6 +18,30 @@ export interface SpecWorkflowState {
   lastUpdated: string
 }
 
+// Phase timing interface for elapsed time tracking
+export interface PhaseTiming {
+  startTime: number
+  endTime: number
+  elapsed: number
+}
+
+// API response tracking for cost and token information
+export interface APIResponseInfo {
+  model: string
+  tokens: {
+    prompt: number
+    completion: number
+    total: number
+  }
+  cost?: {
+    prompt: number
+    completion: number
+    total: number
+  }
+  duration: number
+  timestamp: number
+}
+
 // Specification state interface
 export interface SpecState {
   phase: WorkflowPhase
@@ -30,6 +54,16 @@ export interface SpecState {
   isGenerating: boolean
   error: string | null
   approvals: ApprovalState
+  timing: {
+    requirements: PhaseTiming
+    design: PhaseTiming
+    tasks: PhaseTiming
+  }
+  apiResponses: {
+    requirements: APIResponseInfo | null
+    design: APIResponseInfo | null
+    tasks: APIResponseInfo | null
+  }
 }
 
 // OpenRouter model interface

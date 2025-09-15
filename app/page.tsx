@@ -6,10 +6,13 @@ import ModelSelector from '@/components/ModelSelector'
 import PromptInput from '@/components/PromptInput'
 import { ComponentErrorBoundary } from '@/components/ErrorBoundary'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Key, Brain, MessageSquare, Check, X, Play, FileText, Layers, List, CheckCircle, AlertCircle } from 'lucide-react'
-import { useModelStorage, usePromptStorage, useContextFilesStorage } from '@/hooks/useSessionStorage'
+import { AlertCircle, CheckCircle, FileText, Layers, List, MessageSquare, Play, Loader2, Download } from 'lucide-react'
+import { useSpecWorkflow } from '@/hooks/useSpecWorkflow'
+import { ElapsedTimer } from '@/components/ElapsedTimer'
+import { createSpecificationZip, downloadZipFile } from '@/lib/exportUtils'
 import { useSimpleApiKeyStorage } from '@/hooks/useSimpleApiKeyStorage'
 import { useSpecWorkflow } from '@/hooks/useSpecWorkflow'
 import { DotPattern } from '@/components/magicui/dot-pattern'
@@ -538,40 +541,50 @@ export default function Home() {
                       {/* Phase-specific action buttons - only show if no content exists for current phase */}
                       {workflow.currentPhase !== 'complete' && !hasContentForCurrentPhase() && (
                         <>
-                          <Button 
-                            onClick={() => {
-                              workflow.clearError()
-                              // Generate based on current phase
-                              if (workflow.currentPhase === 'requirements') {
-                                const promptLines = prompt.trim().split('\n')
-                                const featureName = promptLines[0]?.replace(/^#+\s*/, '').trim() || 'Technical Specification'
-                                const textFiles = contextFiles.filter(file => 
-                                  !file.type?.startsWith('image/') && 
-                                  file.type !== 'image/png' && 
-                                  file.type !== 'image/jpeg'
-                                )
-                                const workflowContextFiles = textFiles.map(file => ({
-                                  id: file.id,
-                                  name: file.name,
-                                  type: file.type as any,
-                                  content: file.content,
-                                  size: file.size,
-                                  lastModified: file.lastModified || Date.now(),
-                                  mimeType: file.mimeType || 'text/plain'
-                                }))
-                                workflow.generateWithData(featureName, prompt, workflowContextFiles)
-                              } else {
-                                // For design and tasks phases, use empty data since content comes from previous phases
-                                workflow.generateWithData('', '', [])
-                              }
-                            }} 
-                            variant="default" 
-                            size="sm"
-                            disabled={workflow.isGenerating}
-                          >
-                            <Play className="h-4 w-4 mr-2" />
-                            {workflow.isGenerating ? 'Generating...' : `Generate ${workflow.currentPhase.charAt(0).toUpperCase() + workflow.currentPhase.slice(1)}`}
-                          </Button>
+                          <div className="flex flex-col items-end gap-2">
+                            <Button 
+                              onClick={() => {
+                                workflow.clearError()
+                                // Generate based on current phase
+                                if (workflow.currentPhase === 'requirements') {
+                                  const promptLines = prompt.trim().split('\n')
+                                  const featureName = promptLines[0]?.replace(/^#+\s*/, '').trim() || 'Technical Specification'
+                                  const textFiles = contextFiles.filter(file => 
+                                    !file.type?.startsWith('image/') && 
+                                    file.type !== 'image/png' && 
+                                    file.type !== 'image/jpeg'
+                                  )
+                                  const workflowContextFiles = textFiles.map(file => ({
+                                    id: file.id,
+                                    name: file.name,
+                                    type: file.type as any,
+                                    content: file.content,
+                                    size: file.size,
+                                    lastModified: file.lastModified || Date.now(),
+                                    mimeType: file.mimeType || 'text/plain'
+                                  }))
+                                  workflow.generateWithData(featureName, prompt, workflowContextFiles)
+                                } else {
+                                  // For design and tasks phases, use empty data since content comes from previous phases
+                                  workflow.generateWithData('', '', [])
+                                }
+                              }} 
+                              variant="default" 
+                              size="sm"
+                              disabled={workflow.isGenerating}
+                            >
+                              <Play className="h-4 w-4 mr-2" />
+                              {workflow.isGenerating ? 'Generating...' : `Generate ${workflow.currentPhase.charAt(0).toUpperCase() + workflow.currentPhase.slice(1)}`}
+                            </Button>
+                            
+                            {/* Show elapsed time during generation */}
+                            {workflow.isGenerating && workflow.state.timing[workflow.currentPhase]?.startTime && (
+                              <ElapsedTimer 
+                                startTime={workflow.state.timing[workflow.currentPhase].startTime}
+                                isRunning={workflow.isGenerating}
+                              />
+                            )}
+                          </div>
                           
                           <Button 
                             onClick={handleBackToPrompt} 
@@ -660,13 +673,7 @@ export default function Home() {
                                   Reject & Clear Content
                                 </Button>
                                 <Button
-                                  onClick={() => {
-                                    workflow.approveCurrentPhase()
-                                    // Auto-progress to next phase
-                                    if (workflow.nextPhase) {
-                                      workflow.proceedToNextPhase()
-                                    }
-                                  }}
+                                  onClick={workflow.approveAndProceed}
                                   className="bg-green-600 hover:bg-green-700 min-w-[180px]"
                                   size="sm"
                                 >
@@ -743,12 +750,7 @@ export default function Home() {
                                   Reject & Clear Content
                                 </Button>
                                 <Button
-                                  onClick={() => {
-                                    workflow.approveCurrentPhase()
-                                    if (workflow.nextPhase) {
-                                      workflow.proceedToNextPhase()
-                                    }
-                                  }}
+                                  onClick={workflow.approveAndProceed}
                                   className="bg-green-600 hover:bg-green-700 min-w-[180px]"
                                   size="sm"
                                 >
@@ -824,10 +826,7 @@ export default function Home() {
                                   Reject & Clear Content
                                 </Button>
                                 <Button
-                                  onClick={() => {
-                                    workflow.approveCurrentPhase()
-                                    workflow.proceedToNextPhase() // Complete workflow
-                                  }}
+                                  onClick={workflow.approveAndProceed}
                                   className="bg-blue-600 hover:bg-blue-700 min-w-[200px]"
                                   size="sm"
                                 >
@@ -877,28 +876,234 @@ export default function Home() {
                   )}
                   
                   {workflow.currentPhase === 'complete' && (
-                    <div className="text-center py-8">
-                      <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-600" />
-                      <h3 className="text-lg font-semibold mb-2">Workflow Complete!</h3>
-                      <p className="text-muted-foreground mb-4">All phases have been generated and approved</p>
-                      <Button onClick={() => {
-                        // Simple export functionality for testing
-                        const data = {
-                          requirements: workflow.phaseContent.requirements,
-                          design: workflow.phaseContent.design,
-                          tasks: workflow.phaseContent.tasks,
-                          exportedAt: new Date().toISOString()
-                        }
-                        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-                        const url = URL.createObjectURL(blob)
-                        const a = document.createElement('a')
-                        a.href = url
-                        a.download = 'specification.json'
-                        a.click()
-                        URL.revokeObjectURL(url)
-                      }}>
-                        Export Specifications
-                      </Button>
+                    <div className="space-y-6">
+                      <div className="text-center border-b pb-6">
+                        <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-600" />
+                        <h3 className="text-2xl font-bold mb-2 text-green-700">Workflow Complete!</h3>
+                        <p className="text-muted-foreground">Your technical specification has been generated successfully</p>
+                      </div>
+                      
+                      {/* Summary Cards */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        {/* Model & Settings Summary */}
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-base flex items-center gap-2">
+                              <div className="p-1 bg-primary/10 rounded">
+                                🤖
+                              </div>
+                              Model & Configuration
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            <div className="text-sm">
+                              <div className="font-medium text-muted-foreground mb-1">AI Model Used</div>
+                              <div className="bg-muted/50 p-2 rounded text-xs font-mono">
+                                {selectedModel?.name || 'Default Model'}
+                              </div>
+                            </div>
+                            <div className="text-sm">
+                              <div className="font-medium text-muted-foreground mb-1">Feature Description</div>
+                              <div className="bg-muted/50 p-2 rounded text-xs max-h-20 overflow-y-auto">
+                                {prompt ? (
+                                  contentCollapsed ? 
+                                    prompt.split('\n').slice(0, 2).join('\n') + (prompt.split('\n').length > 2 ? '\n...(click to expand)' : '') :
+                                    prompt
+                                ) : 'No description provided'}
+                              </div>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => setContentCollapsed(!contentCollapsed)}
+                                className="text-xs mt-1 h-auto py-1"
+                              >
+                                {contentCollapsed ? 'Show Full' : 'Collapse'}
+                              </Button>
+                            </div>
+                            {contextFiles.length > 0 && (
+                              <div className="text-sm">
+                                <div className="font-medium text-muted-foreground mb-1">Context Files</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {contextFiles.length} file{contextFiles.length !== 1 ? 's' : ''} provided
+                                </div>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                        
+                        {/* Performance Summary */}
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-base flex items-center gap-2">
+                              <div className="p-1 bg-green-100 rounded">
+                                ⚡
+                              </div>
+                              Performance Summary
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            {['requirements', 'design', 'tasks'].map((phase) => {
+                              const timing = workflow.state.timing[phase as keyof typeof workflow.state.timing]
+                              const apiResponse = workflow.state.apiResponses[phase as keyof typeof workflow.state.apiResponses]
+                              if (!timing || !apiResponse) return null
+                              
+                              return (
+                                <div key={phase} className="text-sm border-b pb-2 last:border-b-0">
+                                  <div className="font-medium text-muted-foreground capitalize mb-1">{phase} Phase</div>
+                                  <div className="grid grid-cols-2 gap-2 text-xs">
+                                    <div>
+                                      <span className="text-muted-foreground">Time: </span>
+                                      <span className="font-mono">{Math.round(timing.elapsed / 1000)}s</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Tokens: </span>
+                                      <span className="font-mono">{apiResponse.tokens.total.toLocaleString()}</span>
+                                    </div>
+                                    {apiResponse.cost && (
+                                      <div className="col-span-2">
+                                        <span className="text-muted-foreground">Cost: </span>
+                                        <span className="font-mono">${apiResponse.cost.total.toFixed(4)}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                            
+                            {/* Total Summary */}
+                            <div className="text-sm pt-2 border-t font-medium">
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <span className="text-muted-foreground">Total Time: </span>
+                                  <span className="font-mono text-primary">
+                                    {Math.round(
+                                      (['requirements', 'design', 'tasks'] as const).reduce((total, phase) => 
+                                        total + (workflow.state.timing[phase]?.elapsed || 0), 0
+                                      ) / 1000
+                                    )}s
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Total Tokens: </span>
+                                  <span className="font-mono text-primary">
+                                    {(['requirements', 'design', 'tasks'] as const).reduce((total, phase) => 
+                                      total + (workflow.state.apiResponses[phase]?.tokens.total || 0), 0
+                                    ).toLocaleString()}
+                                  </span>
+                                </div>
+                                {(['requirements', 'design', 'tasks'] as const).some(phase => 
+                                  workflow.state.apiResponses[phase]?.cost
+                                ) && (
+                                  <div className="col-span-2">
+                                    <span className="text-muted-foreground">Total Cost: </span>
+                                    <span className="font-mono text-primary">
+                                      ${
+                                        (['requirements', 'design', 'tasks'] as const).reduce((total, phase) => 
+                                          total + (workflow.state.apiResponses[phase]?.cost?.total || 0), 0
+                                        ).toFixed(4)
+                                      }
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                      
+                      {/* Generated Content Previews */}
+                      <div className="space-y-4">
+                        <h4 className="text-lg font-semibold">Generated Specifications</h4>
+                        
+                        {(['requirements', 'design', 'tasks'] as const).map((phase) => {
+                          const content = workflow.state[phase]
+                          if (!content) return null
+                          
+                          return (
+                            <Card key={phase}>
+                              <CardHeader>
+                                <CardTitle className="text-base capitalize flex items-center justify-between">
+                                  <span>{phase} Specification</span>
+                                  <Badge variant="outline" className="text-xs">
+                                    {content.length.toLocaleString()} characters
+                                  </Badge>
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                <div className="bg-muted/30 rounded p-3 text-sm font-mono whitespace-pre-wrap max-h-32 overflow-y-auto">
+                                  {content.split('\n').slice(0, 6).join('\n')}
+                                  {content.split('\n').length > 6 && '\n...(truncated for preview)'}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          )
+                        })}
+                      </div>
+                      
+                      {/* Action Buttons */}
+                      <div className="flex items-center justify-center gap-4 pt-6 border-t">
+                        <Button 
+                          onClick={async () => {
+                            try {
+                              // Extract feature name from prompt
+                              const promptLines = prompt.trim().split('\n')
+                              const featureName = promptLines[0]?.replace(/^#+\s*/, '').trim() || 'Technical Specification'
+                              
+                              // Prepare data for ZIP export
+                              const specData = {
+                                featureName,
+                                requirements: workflow.state.requirements || '',
+                                design: workflow.state.design || '',
+                                tasks: workflow.state.tasks || '',
+                                modelName: selectedModel?.name || 'Unknown Model',
+                                timing: {
+                                  requirements: workflow.state.timing.requirements,
+                                  design: workflow.state.timing.design,
+                                  tasks: workflow.state.timing.tasks
+                                },
+                                tokens: {
+                                  requirements: workflow.state.apiResponses.requirements?.tokens.total,
+                                  design: workflow.state.apiResponses.design?.tokens.total,
+                                  tasks: workflow.state.apiResponses.tasks?.tokens.total
+                                }
+                              }
+                              
+                              // Create and download ZIP file
+                              const zipBlob = await createSpecificationZip(specData)
+                              downloadZipFile(zipBlob, featureName)
+                              
+                            } catch (error) {
+                              console.error('Export failed:', error)
+                              // Fallback to simple JSON export if ZIP fails
+                              const data = {
+                                requirements: workflow.phaseContent.requirements,
+                                design: workflow.phaseContent.design,
+                                tasks: workflow.phaseContent.tasks,
+                                exportedAt: new Date().toISOString()
+                              }
+                              const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+                              const url = URL.createObjectURL(blob)
+                              const a = document.createElement('a')
+                              a.href = url
+                              a.download = 'specification-fallback.json'
+                              a.click()
+                              URL.revokeObjectURL(url)
+                            }
+                          }}
+                          className="min-w-[180px] flex items-center gap-2"
+                        >
+                          <Download className="h-4 w-4" />
+                          Download Specification Package
+                        </Button>
+                        
+                        <Button 
+                          variant="outline"
+                          onClick={handleResetAndStartFresh}
+                          className="min-w-[150px]"
+                        >
+                          Start New Project
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </CardContent>

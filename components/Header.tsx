@@ -18,14 +18,35 @@ export default function Header({ className = '' }: HeaderProps) {
   const { clearFiles } = useContextFilesStorage()
 
   const handleReset = () => {
-    // Clear all session data
+    console.log('=== HEADER RESET: Comprehensive Storage Clear ===')
+    
+    // Step 1: Clear all hook-managed data
     clearAPIKey()
     clearModel()
     clearPrompt()
     clearFiles()
     
-    // Refresh the page to reset component state
-    window.location.reload()
+    // Step 2: COMPREHENSIVE STORAGE CLEARING
+    if (typeof window !== 'undefined') {
+      console.log('=== CLEARING LOCALSTORAGE ===')
+      // Clear all localStorage (not just OpenSpec keys)
+      localStorage.clear()
+      
+      console.log('=== CLEARING SESSIONSTORAGE ===')
+      // Clear all sessionStorage
+      sessionStorage.clear()
+      
+      // Set reset flag to prevent auto-restore
+      sessionStorage.setItem('openspec-just-reset', 'true')
+      
+      console.log('=== STORAGE CLEARED - Set reset flag ===')
+    }
+    
+    // Step 3: Force page reload for complete reset
+    setTimeout(() => {
+      console.log('=== FORCING PAGE RELOAD ===')
+      window.location.reload()
+    }, 100)
   }
 
   return (
