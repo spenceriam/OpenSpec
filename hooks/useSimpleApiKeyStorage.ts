@@ -12,9 +12,19 @@ export function useSimpleApiKeyStorage() {
   // Initialize from storage on mount only
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      // Check if we just did a reset - if so, don't load from storage
+      const justReset = sessionStorage.getItem('openspec-just-reset')
+      if (justReset) {
+        console.log('=== API KEY HOOK: Detected reset flag, not loading from storage ===')
+        setApiKeyState(null)
+        setIsValidated(false)
+        return
+      }
+      
       const key = sessionStorage.getItem(API_KEY_STORAGE_KEY)
       const tested = sessionStorage.getItem(API_KEY_TESTED_KEY)
       
+      console.log('=== API KEY HOOK: Loading from storage ===', { key: key ? 'present' : 'null', tested })
       setApiKeyState(key)
       setIsValidated(tested === 'true')
     }

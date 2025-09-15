@@ -246,16 +246,24 @@ export function useLocalStorage<T>(
     // Get value directly to avoid dependency chain
     let storedValue = defaultValue
     if (typeof window !== 'undefined') {
-      try {
-        const item = localStorage.getItem(key)
-        if (item !== null) {
-          const parsed = deserialize(item)
-          if (!validateData || validateData(parsed)) {
-            storedValue = parsed
+      // Check if we just did a reset - if so, use default value instead of stored
+      const justReset = sessionStorage.getItem('openspec-just-reset')
+      if (justReset && key.includes('openspec')) {
+        console.log(`=== LOCALSTORAGE HOOK (${key}): Detected reset flag, using default value ===`)
+        storedValue = defaultValue
+      } else {
+        try {
+          const item = localStorage.getItem(key)
+          if (item !== null) {
+            const parsed = deserialize(item)
+            if (!validateData || validateData(parsed)) {
+              storedValue = parsed
+              console.log(`=== LOCALSTORAGE HOOK (${key}): Loaded from storage ===`)
+            }
           }
+        } catch (error) {
+          console.warn(`Failed to load from localStorage key "${key}":`, error)
         }
-      } catch (error) {
-        console.warn(`Failed to load from localStorage key "${key}":`, error)
       }
     }
     
