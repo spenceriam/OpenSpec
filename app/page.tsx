@@ -38,6 +38,7 @@ export default function Home() {
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
   const [contentCollapsed, setContentCollapsed] = useState(true) // Default to collapsed/preview mode
   const [justDidReset, setJustDidReset] = useState(false) // Track if we just did a reset
+  const [expandedSpecs, setExpandedSpecs] = useState<{[key: string]: boolean}>({}) // Track expanded specifications
 
   const hasApiKey = Boolean(apiKey && hasValidKey)
   const hasModel = Boolean(selectedModel)
@@ -332,7 +333,7 @@ export default function Home() {
               { step: 1, label: 'API Key', icon: Key, completed: hasApiKey },
               { step: 2, label: 'AI Model', icon: Brain, completed: hasModel },
               { step: 3, label: 'Prompt', icon: MessageSquare, completed: hasPrompt },
-              { step: 4, label: 'Generate', icon: Play, completed: false }
+              { step: 4, label: 'Generate', icon: Play, completed: workflow.currentPhase === 'complete' }
             ].map(({ step, label, icon: Icon, completed }) => {
               const clickable = isStepClickable(step, completed)
               const isGenerateStep = step === 4
@@ -870,20 +871,8 @@ export default function Home() {
                             <div className="text-sm">
                               <div className="font-medium text-muted-foreground mb-1">Feature Description</div>
                               <div className="bg-muted/50 p-2 rounded text-xs max-h-20 overflow-y-auto">
-                                {prompt ? (
-                                  contentCollapsed ? 
-                                    prompt.split('\n').slice(0, 2).join('\n') + (prompt.split('\n').length > 2 ? '\n...(click to expand)' : '') :
-                                    prompt
-                                ) : 'No description provided'}
+                                {prompt || 'No description provided'}
                               </div>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                onClick={() => setContentCollapsed(!contentCollapsed)}
-                                className="text-xs mt-1 h-auto py-1"
-                              >
-                                {contentCollapsed ? 'Show Full' : 'Collapse'}
-                              </Button>
                             </div>
                             {contextFiles.length > 0 && (
                               <div className="text-sm">
@@ -910,7 +899,10 @@ export default function Home() {
                             {['requirements', 'design', 'tasks'].map((phase) => {
                               const timing = workflow.state.timing?.[phase as keyof typeof workflow.state.timing]
                               const apiResponse = workflow.state.apiResponses?.[phase as keyof typeof workflow.state.apiResponses]
-                              if (!timing || !apiResponse) return null
+                              const hasContent = workflow.state[phase as keyof typeof workflow.state]
+                              
+                              // Only show phases that have been completed
+                              if (!hasContent) return null
                               
                               return (
                                 <div key={phase} className="text-sm border-b pb-2 last:border-b-0">
@@ -918,13 +910,13 @@ export default function Home() {
                                   <div className="grid grid-cols-2 gap-2 text-xs">
                                     <div>
                                       <span className="text-muted-foreground">Time: </span>
-                                      <span className="font-mono">{Math.round(timing.elapsed / 1000)}s</span>
+                                      <span className="font-mono">{timing?.elapsed ? Math.round(timing.elapsed / 1000) : 0}s</span>
                                     </div>
                                     <div>
                                       <span className="text-muted-foreground">Tokens: </span>
-                                      <span className="font-mono">{apiResponse.tokens.total.toLocaleString()}</span>
+                                      <span className="font-mono">{apiResponse?.tokens?.total?.toLocaleString() || '0'}</span>
                                     </div>
-                                    {apiResponse.cost && (
+                                    {apiResponse?.cost && (
                                       <div className="col-span-2">
                                         <span className="text-muted-foreground">Cost: </span>
                                         <span className="font-mono">${apiResponse.cost.total.toFixed(4)}</span>
@@ -984,20 +976,38 @@ export default function Home() {
                           const content = workflow.state[phase]
                           if (!content) return null
                           
+                          const isExpanded = expandedSpecs[phase] || false
+                          const contentLines = content.split('\n')
+                          const isLong = contentLines.length > 6
+                          
                           return (
                             <Card key={phase}>
                               <CardHeader>
                                 <CardTitle className="text-base capitalize flex items-center justify-between">
                                   <span>{phase} Specification</span>
-                                  <Badge variant="outline" className="text-xs">
-                                    {content.length.toLocaleString()} characters
-                                  </Badge>
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="text-xs">
+                                      {content.length.toLocaleString()} characters
+                                    </Badge>
+                                    {isLong && (
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm"
+                                        onClick={() => setExpandedSpecs(prev => ({...prev, [phase]: !isExpanded}))}
+                                        className="text-xs h-6 px-2"
+                                      >
+                                        {isExpanded ? 'Collapse' : 'Expand'}
+                                      </Button>
+                                    )}
+                                  </div>
                                 </CardTitle>
                               </CardHeader>
                               <CardContent>
-                                <div className="bg-muted/30 rounded p-3 text-sm font-mono whitespace-pre-wrap max-h-32 overflow-y-auto">
-                                  {content.split('\n').slice(0, 6).join('\n')}
-                                  {content.split('\n').length > 6 && '\n...(truncated for preview)'}
+                                <div className={`bg-muted/30 rounded p-3 text-sm font-mono whitespace-pre-wrap overflow-y-auto ${isExpanded ? 'max-h-96' : 'max-h-32'}`}>
+                                  {isExpanded ? content : (
+                                    contentLines.slice(0, 6).join('\n') + 
+                                    (isLong ? '\n\n...(click Expand to view full content)' : '')
+                                  )}
                                 </div>
                               </CardContent>
                             </Card>
