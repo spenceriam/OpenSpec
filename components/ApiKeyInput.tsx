@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Eye, EyeOff, Key, CheckCircle, AlertCircle, Loader2, ExternalLink } from 'lucide-react'
-import { useAPIKeyStorage } from '../hooks/useSessionStorage'
+import { useSimpleApiKeyStorage } from '../hooks/useSimpleApiKeyStorage'
 import { OpenRouterClient } from '@/lib/openrouter/client'
 
 interface ApiKeyInputProps {
@@ -25,7 +25,7 @@ export function ApiKeyInput({
   autoTest = false,
   className = '' 
 }: ApiKeyInputProps) {
-  const { value: apiKey, setAPIKey, clearAPIKey, isValid: isValidKey } = useAPIKeyStorage()
+  const { value: apiKey, setAPIKey, clearAPIKey, hasValidKey: isValidKey } = useSimpleApiKeyStorage()
   const [inputValue, setInputValue] = useState(apiKey || '')
   
   // Update inputValue when apiKey changes from storage
