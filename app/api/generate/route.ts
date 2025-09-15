@@ -359,18 +359,25 @@ export async function POST(request: NextRequest) {
     
     if (errorObj.code && errorObj.message) {
       const statusCode = getStatusCodeFromError(errorObj.code)
+      
+      // Extract more detailed error information if available
+      const detailedMessage = (errorObj as any).message || errorObj.message
+      const metadata = (errorObj as any).metadata
+      
       console.log('=== RETURNING OPENROUTER ERROR ===', {
         originalCode: errorObj.code,
         mappedStatus: statusCode,
-        message: errorObj.message
+        message: detailedMessage,
+        metadata
       })
       
       return NextResponse.json(
         {
           error: {
             code: errorObj.code,
-            message: errorObj.message,
-            retryable: errorObj.retryable || false
+            message: detailedMessage,
+            retryable: errorObj.retryable || errorObj.code === 429,
+            details: metadata?.raw || undefined
           }
         },
         { status: statusCode }

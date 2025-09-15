@@ -315,7 +315,8 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
       setState(prev => ({
         ...prev,
         [state.phase]: content,
-        isGenerating: false
+        isGenerating: false,
+        error: null
       }))
 
       onGenerationComplete?.(state.phase, content)
@@ -525,7 +526,7 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
         },
         body: JSON.stringify({
           apiKey,
-          model: selectedModel?.id || 'anthropic/claude-3.5-sonnet',
+          model: selectedModel?.id || 'meta-llama/llama-3.2-3b-instruct:free',
           systemPrompt,
           userPrompt,
           // contextFiles are already embedded in userPrompt, don't send separately
@@ -583,7 +584,8 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
         const baseUpdate = {
           ...prev,
           [state.phase]: content,
-          isGenerating: false
+          isGenerating: false,
+          error: null
         }
         
         // Only update feature metadata during requirements phase
@@ -669,7 +671,7 @@ Please update the ${state.phase} document based on this feedback while maintaini
         },
         body: JSON.stringify({
           apiKey,
-          model: selectedModel?.id || 'anthropic/claude-3.5-sonnet',
+          model: selectedModel?.id || 'meta-llama/llama-3.2-3b-instruct:free',
           systemPrompt,
           userPrompt,
           // contextFiles not needed for refinement
@@ -691,7 +693,8 @@ Please update the ${state.phase} document based on this feedback while maintaini
       setState(prev => ({
         ...prev,
         [state.phase]: content,
-        isGenerating: false
+        isGenerating: false,
+        error: null
       }))
 
       // Update refinement history
@@ -777,11 +780,66 @@ Please update the ${state.phase} document based on this feedback while maintaini
     onPhaseChange?.(previousPhase, oldPhase)
   }, [canGoBack, previousPhase, state.phase, setState, onPhaseChange])
 
-  // Utility functions
+  // Utility functions - AGGRESSIVE RESET
   const reset = useCallback(() => {
+    console.log('=== AGGRESSIVE WORKFLOW RESET CALLED ===', {
+      beforeReset: {
+        phase: state.phase,
+        requirements: !!state.requirements,
+        design: !!state.design,
+        tasks: !!state.tasks,
+        storageKey: 'openspec-workflow-state'
+      }
+    })
+    
+    // Step 1: Reset state to default
     setState(DEFAULT_SPEC_STATE)
     setRefinementHistory([])
-  }, [setState])
+    
+    // Step 2: Force localStorage removal with multiple attempts
+    if (typeof window !== 'undefined') {
+      // Remove the specific workflow storage key
+      localStorage.removeItem('openspec-workflow-state')
+      sessionStorage.removeItem('openspec-workflow-state')
+      
+      // Remove any other OpenSpec related keys
+      const keysToRemove = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && key.includes('openspec')) {
+          keysToRemove.push(key)
+        }
+      }
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key)
+        console.log('=== REMOVED STORAGE KEY ===', key)
+      })
+      
+      // Also clear from sessionStorage
+      const sessionKeysToRemove = []
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i)
+        if (key && key.includes('openspec')) {
+          sessionKeysToRemove.push(key)
+        }
+      }
+      sessionKeysToRemove.forEach(key => {
+        sessionStorage.removeItem(key)
+        console.log('=== REMOVED SESSION KEY ===', key)
+      })
+    }
+    
+    // Step 3: Force sync after delay
+    setTimeout(() => {
+      forceSync()
+      console.log('=== WORKFLOW RESET COMPLETED WITH FORCE SYNC ===')
+    }, 100)
+    
+    console.log('=== AGGRESSIVE RESET COMPLETED ===', {
+      afterReset: DEFAULT_SPEC_STATE,
+      clearedStorageKeys: 'all openspec keys'
+    })
+  }, [setState, forceSync, state])
 
   const clearError = useCallback(() => {
     setState(prev => ({ ...prev, error: null }))
