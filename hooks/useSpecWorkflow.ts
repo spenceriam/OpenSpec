@@ -805,11 +805,13 @@ Please update the ${state.phase} document based on this feedback while maintaini
     onPhaseChange?.(nextPhase, oldPhase)
   }, [canProceedToNext, nextPhase, state.phase, setState, onPhaseChange])
 
-  // NEW: Atomic approve and proceed operation to fix double-click issues
-  const approveAndProceed = useCallback(() => {
+  // NEW: Atomic approve and proceed operation with automatic next phase generation
+  const approveAndProceed = useCallback(async () => {
     if (state.phase === 'complete' || !nextPhase) return
 
     const oldPhase = state.phase
+    
+    // First, approve current phase and proceed to next
     setState(prev => ({
       ...prev,
       approvals: {
@@ -819,7 +821,130 @@ Please update the ${state.phase} document based on this feedback while maintaini
       phase: nextPhase
     }))
     onPhaseChange?.(nextPhase, oldPhase)
-  }, [state.phase, nextPhase, setState, onPhaseChange])
+    
+    // Then automatically generate content for the next phase (unless it's complete)
+    if (nextPhase !== 'complete') {
+      // Use setTimeout to ensure state update is processed first
+      setTimeout(async () => {
+        try {
+          // Update the internal state reference for the next phase
+          const currentState = state
+          const startTime = Date.now()
+          
+          setState(prev => ({ 
+            ...prev, 
+            isGenerating: true, 
+            error: null,
+            timing: {
+              ...prev.timing,
+              [nextPhase]: {
+                startTime,
+                endTime: 0,
+                elapsed: 0
+              }
+            }
+          }))
+          
+          onGenerationStart?.(nextPhase)
+          
+          // Build the appropriate prompt for the next phase
+          const systemPrompt = getSystemPromptForPhase(nextPhase)
+          const userPrompt = buildUserPrompt({ ...currentState, phase: nextPhase })
+          
+          // Create AbortController for timeout handling
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => controller.abort(), 180000) // 3 minutes
+          
+          const response = await fetch('/api/generate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            signal: controller.signal,
+            body: JSON.stringify({
+              apiKey,
+              model: selectedModel?.id || 'anthropic/claude-3.5-sonnet',
+              systemPrompt,
+              userPrompt,
+              contextFiles: [],
+              options: {
+                temperature: 0.3,
+                max_tokens: 8192
+              }
+            })
+          })
+          
+          clearTimeout(timeoutId)
+          
+          if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.error?.message || 'Generation failed')
+          }
+          
+          const { content, usage, model } = await response.json()
+          
+          // Calculate timing and cost info
+          const endTime = Date.now()
+          const elapsed = endTime - startTime
+          const costInfo = usage ? {
+            prompt_cost: ((usage.prompt_tokens || 0) * 0.003) / 1000, // $3 per 1M tokens
+            completion_cost: ((usage.completion_tokens || 0) * 0.015) / 1000, // $15 per 1M tokens  
+            total_cost: (((usage.prompt_tokens || 0) * 0.003) + ((usage.completion_tokens || 0) * 0.015)) / 1000
+          } : { prompt_cost: 0, completion_cost: 0, total_cost: 0 }
+          
+          setState(prev => ({
+            ...prev,
+            [nextPhase]: content,
+            isGenerating: false,
+            error: null,
+            timing: {
+              ...prev.timing,
+              [nextPhase]: {
+                startTime,
+                endTime,
+                elapsed
+              }
+            },
+            apiResponses: {
+              ...prev.apiResponses,
+              [nextPhase]: {
+                model: model || selectedModel?.id || 'unknown',
+                tokens: usage ? {
+                  prompt: usage.prompt_tokens || 0,
+                  completion: usage.completion_tokens || 0,
+                  total: usage.total_tokens || 0
+                } : { prompt: 0, completion: 0, total: 0 },
+                cost: costInfo,
+                duration: elapsed,
+                timestamp: endTime
+              }
+            }
+          }))
+          
+          onGenerationComplete?.(nextPhase, content)
+          
+        } catch (error) {
+          let errorMessage = 'Unknown error'
+          
+          if (error instanceof Error) {
+            if (error.name === 'AbortError') {
+              errorMessage = 'Request timed out after 3 minutes. Please try again with a shorter prompt or simpler requirements.'
+            } else {
+              errorMessage = error.message
+            }
+          }
+          
+          const err = new Error(errorMessage)
+          setState(prev => ({
+            ...prev,
+            isGenerating: false,
+            error: err.message
+          }))
+          onError?.(err, nextPhase)
+        }
+      }, 500) // Small delay to ensure UI updates
+    }
+  }, [state, nextPhase, setState, onPhaseChange, onGenerationStart, onGenerationComplete, onError, apiKey, selectedModel, hasValidKey])
 
   const goToPreviousPhase = useCallback(() => {
     if (!canGoBack || !previousPhase) return

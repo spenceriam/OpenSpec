@@ -350,6 +350,12 @@ export default function Home() {
               if (stepStatus === 'success') DisplayIcon = Check
               if (stepStatus === 'error') DisplayIcon = X
               
+              // Special handling for Generate step when complete
+              if (isGenerateStep && workflow.currentPhase === 'complete') {
+                DisplayIcon = Check
+                stepStatus = 'success'
+              }
+              
               return (
                 <div 
                   key={step} 
