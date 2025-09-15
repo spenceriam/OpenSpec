@@ -4,18 +4,11 @@ import { useState, useEffect } from 'react'
 import ApiKeyInput from '@/components/ApiKeyInput'
 import ModelSelector from '@/components/ModelSelector'
 import PromptInput from '@/components/PromptInput'
-import WorkflowProgress from '@/components/WorkflowProgress'
-import MarkdownPreview from '@/components/MarkdownPreview'
-import ContentRefinement from '@/components/ContentRefinement'
-import ApprovalControls from '@/components/ApprovalControls'
-import ExportDialog from '@/components/ExportDialog'
-import ErrorBoundary, { ComponentErrorBoundary } from '@/components/ErrorBoundary'
+import { ComponentErrorBoundary } from '@/components/ErrorBoundary'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
-import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { FileText, Download, Play, Key, Brain, MessageSquare, Check, X, AlertCircle, CheckCircle, Layers, List } from 'lucide-react'
+import { Key, Brain, MessageSquare, Check, X, Play, FileText, Layers, List, CheckCircle } from 'lucide-react'
 import { useModelStorage, usePromptStorage, useContextFilesStorage } from '@/hooks/useSessionStorage'
 import { useSimpleApiKeyStorage } from '@/hooks/useSimpleApiKeyStorage'
 import { useSpecWorkflow } from '@/hooks/useSpecWorkflow'
@@ -33,7 +26,6 @@ export default function Home() {
     selectedModel,
   })
   const [currentStep, setCurrentStep] = useState(1)
-  const [showExportDialog, setShowExportDialog] = useState(false)
   const [showContinueDialog, setShowContinueDialog] = useState(false)
   const [hasCheckedSession, setHasCheckedSession] = useState(false)
   const [apiKeyStatus, setApiKeyStatus] = useState<'loading' | 'success' | 'error' | null>(null)
@@ -223,9 +215,7 @@ export default function Home() {
     }
   }
 
-  const handleExport = (options: any) => {
-    setShowExportDialog(false)
-  }
+  // Export functionality moved inline
 
   // Handle step navigation - allow going back to previous steps
   const handleStepClick = (step: number) => {
@@ -632,7 +622,22 @@ export default function Home() {
                       <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-600" />
                       <h3 className="text-lg font-semibold mb-2">Workflow Complete!</h3>
                       <p className="text-muted-foreground mb-4">All phases have been generated and approved</p>
-                      <Button onClick={() => setShowExportDialog(true)}>
+                      <Button onClick={() => {
+                        // Simple export functionality for testing
+                        const data = {
+                          requirements: workflow.phaseContent.requirements,
+                          design: workflow.phaseContent.design,
+                          tasks: workflow.phaseContent.tasks,
+                          exportedAt: new Date().toISOString()
+                        }
+                        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+                        const url = URL.createObjectURL(blob)
+                        const a = document.createElement('a')
+                        a.href = url
+                        a.download = 'specification.json'
+                        a.click()
+                        URL.revokeObjectURL(url)
+                      }}>
                         Export Specifications
                       </Button>
                     </div>
@@ -644,23 +649,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Export Dialog */}
-      <ExportDialog
-        open={showExportDialog}
-        onOpenChange={setShowExportDialog}
-        workflowState={{
-          currentPhase: workflow.currentPhase,
-          phaseContent: workflow.phaseContent,
-          approvals: {
-            requirements: workflow.approvals.requirements,
-            design: workflow.approvals.design,
-            tasks: workflow.approvals.tasks
-          },
-          isGenerating: workflow.isGenerating,
-          lastUpdated: new Date().toISOString()
-        }}
-        onExport={handleExport}
-      />
+      {/* Export Dialog - Removed for simplification */}
 
       {/* Regenerate Confirmation Dialog */}
       <Dialog open={showRegenerateConfirm} onOpenChange={setShowRegenerateConfirm}>

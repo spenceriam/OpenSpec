@@ -79,7 +79,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarnings>
+    <html lang="en">
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
@@ -87,7 +87,7 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#000000" />
       </head>
-      <body className={`${inter.className} antialiased h-screen bg-background overflow-hidden`}>
+      <body className={`${inter.className} antialiased h-screen bg-background overflow-hidden`} suppressHydrationWarnings>
         <ErrorBoundary>
           <div className="relative flex h-screen flex-col">
             <Header className="flex-shrink-0 z-50 w-full" />
