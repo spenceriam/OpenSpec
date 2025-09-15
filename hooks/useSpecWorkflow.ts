@@ -78,6 +78,7 @@ export interface UseSpecWorkflowReturn {
   approveCurrentPhase: () => void
   rejectCurrentPhase: () => void
   proceedToNextPhase: () => void
+  approveAndProceed: () => Promise<void>
   goToPreviousPhase: () => void
   
   // Content management
@@ -144,7 +145,7 @@ function hasPromptChanged(storedDescription: string, newDescription: string, sto
   const intersection = allStoredWords.filter(word => allNewWords.includes(word))
   const overlap = intersection.length / Math.max(allStoredWords.length, allNewWords.length)
   
-  const significantChange = overlap < 0.4 || featureNameChanged
+  const significantChange = overlap < 0.4 || Boolean(featureNameChanged)
   
   // Removed verbose logging for production
   
@@ -635,25 +636,31 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
           error: null,
           timing: {
             ...prev.timing,
-            [state.phase]: {
-              startTime: prev.timing[state.phase]?.startTime || endTime - elapsed,
-              endTime,
-              elapsed
-            }
+            // Only update timing for non-complete phases
+            ...(state.phase !== 'complete' && {
+              [state.phase]: {
+                startTime: prev.timing[state.phase as keyof typeof prev.timing]?.startTime || endTime - elapsed,
+                endTime,
+                elapsed
+              }
+            })
           },
           apiResponses: {
             ...prev.apiResponses,
-            [state.phase]: {
-              model: model || selectedModel?.id || 'unknown',
-              tokens: usage ? {
-                prompt: usage.prompt_tokens || 0,
-                completion: usage.completion_tokens || 0,
-                total: usage.total_tokens || 0
-              } : { prompt: 0, completion: 0, total: 0 },
-              cost: costInfo,
-              duration: elapsed,
-              timestamp: endTime
-            }
+            // Only update API responses for non-complete phases
+            ...(state.phase !== 'complete' && {
+              [state.phase]: {
+                model: model || selectedModel?.id || 'unknown',
+                tokens: usage ? {
+                  prompt: usage.prompt_tokens || 0,
+                  completion: usage.completion_tokens || 0,
+                  total: usage.total_tokens || 0
+                } : { prompt: 0, completion: 0, total: 0 },
+                cost: costInfo,
+                duration: elapsed,
+                timestamp: endTime
+              }
+            })
           }
         }
         
@@ -850,160 +857,156 @@ Please update the ${state.phase} document based on this feedback while maintaini
     if (state.phase === 'complete' || !nextPhase) return
 
     const oldPhase = state.phase
+    const startTime = Date.now()
     
-    // First, approve current phase and proceed to next
+    // Immediately approve current phase, proceed to next, and set generating state
     setState(prev => ({
       ...prev,
       approvals: {
         ...prev.approvals,
         [state.phase]: true
       },
-      phase: nextPhase
+      phase: nextPhase,
+      // Immediately set generating state to prevent UI flickering
+      isGenerating: nextPhase !== 'complete',
+      error: null,
+      timing: {
+        ...prev.timing,
+        // Only update timing for non-complete phases
+        ...(nextPhase !== 'complete' && {
+          [nextPhase]: {
+            startTime: startTime,
+            endTime: 0,
+            elapsed: 0
+          }
+        })
+      }
     }))
+    
     onPhaseChange?.(nextPhase, oldPhase)
     
-    // Then automatically generate content for the next phase (unless it's complete)
-    if (nextPhase !== 'complete') {
-      // Use setTimeout to ensure state update is processed first
-      setTimeout(async () => {
-        try {
-          const startTime = Date.now()
-          
-          // Use a reference to get the current state at execution time
-          let currentStateForPrompt: SpecState
-          
-          setState(prev => { 
-            // Capture the current state for prompt building
-            currentStateForPrompt = { ...prev, phase: nextPhase }
-            
-            return {
-              ...prev, 
-              isGenerating: true, 
-              error: null,
-              timing: {
-                ...prev.timing,
-                [nextPhase]: {
-                  startTime,
-                  endTime: 0,
-                  elapsed: 0
-                }
-              }
-            }
-          })
-          
-          onGenerationStart?.(nextPhase)
-          
-          // Build the appropriate prompt for the next phase using fresh state
-          const systemPrompt = getSystemPromptForPhase(nextPhase)
-          const userPrompt = buildUserPrompt(currentStateForPrompt!)
-          
-          // Create AbortController for timeout handling
-          const controller = new AbortController()
-          const timeoutId = setTimeout(() => controller.abort(), 180000) // 3 minutes
-          
-          const response = await fetch('/api/generate', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            signal: controller.signal,
-            body: JSON.stringify({
-              apiKey,
-              model: selectedModel?.id || 'anthropic/claude-3.5-sonnet',
-              systemPrompt,
-              userPrompt,
-              contextFiles: [],
-              options: {
-                temperature: 0.3,
-                max_tokens: 8192
-              }
-            })
-          })
-          
-          clearTimeout(timeoutId)
-          
-          if (!response.ok) {
-            const errorData = await response.json()
-            throw new Error(errorData.error?.message || 'Generation failed')
-          }
-          
-          const { content, usage, model } = await response.json()
-          
-          // Calculate timing and cost info
-          const endTime = Date.now()
-          const elapsed = endTime - startTime
-          
-          // Calculate cost using the same logic as generateWithData
-          let costInfo = undefined
-          if (usage && selectedModel?.pricing) {
-            const promptCost = (usage.prompt_tokens / 1000) * parseFloat(selectedModel.pricing.prompt)
-            const completionCost = (usage.completion_tokens / 1000) * parseFloat(selectedModel.pricing.completion)
-            costInfo = {
-              prompt: promptCost,
-              completion: completionCost,
-              total: promptCost + completionCost
-            }
-          }
-          
-          // Debug logging to understand what data we're storing
-          console.log(`[AutoGen] ${nextPhase} phase completed:`, {
-            elapsed: elapsed + 'ms',
-            tokens: usage?.total_tokens || 0,
-            cost: costInfo?.total || 0,
-            hasContent: !!content
-          })
-          
-          setState(prev => ({
-            ...prev,
-            [nextPhase]: content,
-            isGenerating: false,
-            error: null,
-            timing: {
-              ...prev.timing,
-              [nextPhase]: {
-                startTime,
-                endTime,
-                elapsed
-              }
-            },
-            apiResponses: {
-              ...prev.apiResponses,
-              [nextPhase]: {
-                model: model || selectedModel?.id || 'unknown',
-                tokens: usage ? {
-                  prompt: usage.prompt_tokens || 0,
-                  completion: usage.completion_tokens || 0,
-                  total: usage.total_tokens || 0
-                } : { prompt: 0, completion: 0, total: 0 },
-                cost: costInfo,
-                duration: elapsed,
-                timestamp: endTime
-              }
-            }
-          }))
-          
-          onGenerationComplete?.(nextPhase, content)
-          
-        } catch (error) {
-          let errorMessage = 'Unknown error'
-          
-          if (error instanceof Error) {
-            if (error.name === 'AbortError') {
-              errorMessage = 'Request timed out after 3 minutes. Please try again with a shorter prompt or simpler requirements.'
-            } else {
-              errorMessage = error.message
-            }
-          }
-          
-          const err = new Error(errorMessage)
-          setState(prev => ({
-            ...prev,
-            isGenerating: false,
-            error: err.message
-          }))
-          onError?.(err, nextPhase)
+    // Only proceed with generation if not complete
+    if (nextPhase === 'complete') {
+      return
+    }
+    
+    onGenerationStart?.(nextPhase)
+    
+    try {
+      // Build the appropriate prompt for the next phase
+      const systemPrompt = getSystemPromptForPhase(nextPhase)
+      const userPrompt = buildUserPrompt({ 
+        ...state, 
+        phase: nextPhase,
+        approvals: {
+          ...state.approvals,
+          [state.phase]: true
         }
-      }, 500) // Small delay to ensure UI updates
+      })
+      
+      // Create AbortController for timeout handling
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 180000) // 3 minutes
+      
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          apiKey,
+          model: selectedModel?.id || 'anthropic/claude-3.5-sonnet',
+          systemPrompt,
+          userPrompt,
+          contextFiles: [],
+          options: {
+            temperature: 0.3,
+            max_tokens: 8192
+          }
+        })
+      })
+      
+      clearTimeout(timeoutId)
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error?.message || 'Generation failed')
+      }
+      
+      const { content, usage, model } = await response.json()
+      
+      // Calculate timing and cost info
+      const endTime = Date.now()
+      const elapsed = endTime - startTime
+      
+      // Calculate cost using the same logic as generateWithData
+      let costInfo = undefined
+      if (usage && selectedModel?.pricing) {
+        const promptCost = (usage.prompt_tokens / 1000) * parseFloat(selectedModel.pricing.prompt)
+        const completionCost = (usage.completion_tokens / 1000) * parseFloat(selectedModel.pricing.completion)
+        costInfo = {
+          prompt: promptCost,
+          completion: completionCost,
+          total: promptCost + completionCost
+        }
+      }
+      
+      setState(prev => ({
+        ...prev,
+        [nextPhase]: content,
+        isGenerating: false,
+        error: null,
+        timing: {
+          ...prev.timing,
+          // Only update timing for non-complete phases
+          ...(nextPhase !== 'complete' && {
+            [nextPhase]: {
+              startTime,
+              endTime,
+              elapsed
+            }
+          })
+        },
+        apiResponses: {
+          ...prev.apiResponses,
+          // Only update API responses for non-complete phases
+          ...(nextPhase !== 'complete' && {
+            [nextPhase]: {
+              model: model || selectedModel?.id || 'unknown',
+              tokens: usage ? {
+                prompt: usage.prompt_tokens || 0,
+                completion: usage.completion_tokens || 0,
+                total: usage.total_tokens || 0
+              } : { prompt: 0, completion: 0, total: 0 },
+              cost: costInfo,
+              duration: elapsed,
+              timestamp: endTime
+            }
+          })
+        }
+      }))
+      
+      onGenerationComplete?.(nextPhase, content)
+      
+    } catch (error) {
+      let errorMessage = 'Unknown error'
+      
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          errorMessage = 'Request timed out after 3 minutes. Please try again with a shorter prompt or simpler requirements.'
+        } else {
+          errorMessage = error.message
+        }
+      }
+      
+      const err = new Error(errorMessage)
+      setState(prev => ({
+        ...prev,
+        isGenerating: false,
+        error: err.message
+      }))
+      onError?.(err, nextPhase)
     }
   }, [state, nextPhase, setState, onPhaseChange, onGenerationStart, onGenerationComplete, onError, apiKey, selectedModel, hasValidKey])
 
