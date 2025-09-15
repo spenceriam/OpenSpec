@@ -240,7 +240,7 @@ OpenSpec is a fully static Next.js application with no backend dependencies.
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guidelines](.kiro/specs/openspec-web-app/CONTRIBUTING.md) for details.
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
 
 ### Development Workflow
 
