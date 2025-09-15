@@ -1144,23 +1144,7 @@ NEXT_PUBLIC_GITHUB_REPO="https://github.com/yourusername/openspec"
 
 ## Success Metrics
 
-### Hackathon Judging Criteria
-1. **Potential Value**
-   - Democratizes spec-driven development
-   - Supports any AI model through OpenRouter
-   - Completely open source
-
-2. **Implementation**
-   - Perfectly replicates Kiro Spec Mode workflow
-   - Uses Kiro for implementation (meta!)
-   - Clean, maintainable code
-
-3. **Quality of Idea**
-   - Solves real developer pain point
-   - Novel approach to specification generation
-   - Extensible architecture
-
-### Post-Hackathon Metrics
+### Success Metrics
 - GitHub stars and forks
 - Number of specs generated
 - User feedback on quality
@@ -1186,4 +1170,4 @@ NEXT_PUBLIC_GITHUB_REPO="https://github.com/yourusername/openspec"
 
 OpenSpec brings the power of Kiro's Spec Mode to the open-source community, enabling any developer to generate high-quality technical specifications using their preferred AI model. By following Kiro's proven three-phase workflow and adding automatic diagram generation, OpenSpec makes spec-driven development accessible to everyone.
 
-The application is designed to be simple, focused, and immediately useful - perfect for the hackathon while laying the foundation for a valuable long-term tool for the developer community.
+The application is designed to be simple, focused, and immediately useful - providing a valuable long-term tool for the developer community.
