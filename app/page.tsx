@@ -192,17 +192,17 @@ export default function Home() {
       contextFilesCount: contextFiles.length
     })
     
-    // HACKATHON: Skip image processing, only include text files
+    // Filter to text files only for generation context
     const textFiles = contextFiles.filter(file => 
       !file.type?.startsWith('image/') && 
       file.type !== 'image/png' && 
       file.type !== 'image/jpeg'
     )
     
-    console.log('HACKATHON: Filtered to text files only:', {
+    console.log('Filtered to text files for AI context:', {
       originalFiles: contextFiles.length,
       textFiles: textFiles.length,
-      skippedImages: contextFiles.length - textFiles.length
+      filteredImages: contextFiles.length - textFiles.length
     })
     
     const workflowContextFiles = textFiles.map(file => ({
@@ -399,46 +399,248 @@ export default function Home() {
             </div>
           )}
 
-          {/* Step 4: Generation/Results */}
+          {/* Step 4: Generation/Results with Approval Workflow */}
           {currentStep === 4 && (
             <div className="flex-1 flex flex-col gap-4 min-h-0">
-              {/* Top Panel: Horizontal Workflow Progress */}
+              {/* Top Panel: Current Phase Status */}
               <Card className="h-fit">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center justify-between text-base">
                     <div className="flex items-center gap-2">
                       <Play className="h-4 w-4" />
-                      Generation Progress
+                      {workflow.currentPhase === 'requirements' && 'Requirements Generation'}
+                      {workflow.currentPhase === 'design' && 'Design Generation'}
+                      {workflow.currentPhase === 'tasks' && 'Tasks Generation'}
+                      {workflow.currentPhase === 'complete' && 'Workflow Complete'}
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button 
-                        onClick={() => {
-                          workflow.clearError()
-                          workflow.generateCurrentPhase()
-                        }} 
-                        variant="default" 
-                        size="sm"
-                        disabled={workflow.isGenerating}
-                      >
-                        <Play className="h-4 w-4 mr-2" />
-                        {workflow.isGenerating ? 'Generating...' : 'Retry'}
+                      {/* Phase-specific action buttons */}
+                      {workflow.currentPhase !== 'complete' && (
+                        <>
+                          <Button 
+                            onClick={() => {
+                              workflow.clearError()
+                              // Generate based on current phase
+                              if (workflow.currentPhase === 'requirements') {
+                                const promptLines = prompt.trim().split('\n')
+                                const featureName = promptLines[0]?.replace(/^#+\s*/, '').trim() || 'Technical Specification'
+                                const textFiles = contextFiles.filter(file => 
+                                  !file.type?.startsWith('image/') && 
+                                  file.type !== 'image/png' && 
+                                  file.type !== 'image/jpeg'
+                                )
+                                const workflowContextFiles = textFiles.map(file => ({
+                                  id: file.id,
+                                  name: file.name,
+                                  type: file.type as any,
+                                  content: file.content,
+                                  size: file.size,
+                                  lastModified: file.lastModified || Date.now(),
+                                  mimeType: file.mimeType || 'text/plain'
+                                }))
+                                workflow.generateWithData(featureName, prompt, workflowContextFiles)
+                              } else {
+                                // For design and tasks phases, use empty data since content comes from previous phases
+                                workflow.generateWithData('', '', [])
+                              }
+                            }} 
+                            variant="default" 
+                            size="sm"
+                            disabled={workflow.isGenerating}
+                          >
+                            <Play className="h-4 w-4 mr-2" />
+                            {workflow.isGenerating ? 'Generating...' : `Generate ${workflow.currentPhase.charAt(0).toUpperCase() + workflow.currentPhase.slice(1)}`}
+                          </Button>
+                          
+                          <Button 
+                            onClick={handleBackToPrompt} 
+                            variant="outline" 
+                            size="sm"
+                            disabled={workflow.isGenerating}
+                          >
+                            <MessageSquare className="h-4 w-4 mr-2" />
+                            Edit Prompt
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                
+                {/* Current Phase Content & Approval */}
+                <CardContent>
+                  {workflow.error && (
+                    <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+                      <div className="flex items-center gap-2 text-destructive mb-2">
+                        <AlertCircle className="h-4 w-4" />
+                        <span className="text-sm font-medium">Generation Error</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{workflow.error}</p>
+                    </div>
+                  )}
+                  
+                  {/* Phase content display with approval controls */}
+                  {workflow.currentPhase === 'requirements' && (
+                    <div className="space-y-4">
+                      {workflow.state.requirements ? (
+                        <>
+                          <div className="prose prose-sm max-w-none">
+                            <div className="bg-muted/50 p-4 rounded-lg">
+                              <h4 className="font-semibold mb-2">Generated Requirements:</h4>
+                              <div className="whitespace-pre-wrap text-sm">{workflow.state.requirements}</div>
+                            </div>
+                          </div>
+                          
+                          {/* Approval Controls */}
+                          <div className="border-t pt-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="font-semibold">Review Requirements</h4>
+                                <p className="text-sm text-muted-foreground">Approve to proceed to Design phase</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => {
+                                    workflow.rejectCurrentPhase()
+                                  }}
+                                >
+                                  Reject & Regenerate
+                                </Button>
+                                <Button
+                                  onClick={() => {
+                                    workflow.approveCurrentPhase()
+                                    // Auto-progress to next phase
+                                    if (workflow.nextPhase) {
+                                      workflow.proceedToNextPhase()
+                                    }
+                                  }}
+                                >
+                                  Approve & Continue to Design
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <FileText className="h-8 w-8 mx-auto mb-2" />
+                          <div>No requirements generated yet</div>
+                          <div className="text-xs mt-1">Click Generate Requirements to start</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Similar blocks for Design and Tasks phases... */}
+                  {workflow.currentPhase === 'design' && (
+                    <div className="space-y-4">
+                      {workflow.state.design ? (
+                        <>
+                          <div className="prose prose-sm max-w-none">
+                            <div className="bg-muted/50 p-4 rounded-lg">
+                              <h4 className="font-semibold mb-2">Generated Design:</h4>
+                              <div className="whitespace-pre-wrap text-sm">{workflow.state.design}</div>
+                            </div>
+                          </div>
+                          
+                          <div className="border-t pt-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="font-semibold">Review Design</h4>
+                                <p className="text-sm text-muted-foreground">Approve to proceed to Tasks phase</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => workflow.rejectCurrentPhase()}
+                                >
+                                  Reject & Regenerate
+                                </Button>
+                                <Button
+                                  onClick={() => {
+                                    workflow.approveCurrentPhase()
+                                    if (workflow.nextPhase) {
+                                      workflow.proceedToNextPhase()
+                                    }
+                                  }}
+                                >
+                                  Approve & Continue to Tasks
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <Layers className="h-8 w-8 mx-auto mb-2" />
+                          <div>No design generated yet</div>
+                          <div className="text-xs mt-1">Click Generate Design to start</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {workflow.currentPhase === 'tasks' && (
+                    <div className="space-y-4">
+                      {workflow.state.tasks ? (
+                        <>
+                          <div className="prose prose-sm max-w-none">
+                            <div className="bg-muted/50 p-4 rounded-lg">
+                              <h4 className="font-semibold mb-2">Generated Tasks:</h4>
+                              <div className="whitespace-pre-wrap text-sm">{workflow.state.tasks}</div>
+                            </div>
+                          </div>
+                          
+                          <div className="border-t pt-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="font-semibold">Review Tasks</h4>
+                                <p className="text-sm text-muted-foreground">Approve to complete the workflow</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => workflow.rejectCurrentPhase()}
+                                >
+                                  Reject & Regenerate
+                                </Button>
+                                <Button
+                                  onClick={() => {
+                                    workflow.approveCurrentPhase()
+                                    workflow.proceedToNextPhase() // Complete workflow
+                                  }}
+                                >
+                                  Approve & Complete
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <List className="h-8 w-8 mx-auto mb-2" />
+                          <div>No tasks generated yet</div>
+                          <div className="text-xs mt-1">Click Generate Tasks to start</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {workflow.currentPhase === 'complete' && (
+                    <div className="text-center py-8">
+                      <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-600" />
+                      <h3 className="text-lg font-semibold mb-2">Workflow Complete!</h3>
+                      <p className="text-muted-foreground mb-4">All phases have been generated and approved</p>
+                      <Button onClick={() => setShowExportDialog(true)}>
+                        Export Specifications
                       </Button>
-                      
-                      <Button 
-                        onClick={handleBackToPrompt} 
-                        variant="outline" 
-                        size="sm"
-                        disabled={workflow.isGenerating}
-                      >
-                        <MessageSquare className="h-4 w-4 mr-2" />
-                        Edit & Regenerate
-                      </Button>
-                      
-                      <Button 
-                        onClick={() => setShowExportDialog(true)} 
-                        variant="outline" 
-                        size="sm"
-                        disabled={!workflow.phaseContent.requirements}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
                       >
                         <Download className="h-4 w-4 mr-2" />
                         Export
