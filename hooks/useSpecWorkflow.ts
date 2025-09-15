@@ -10,7 +10,7 @@ import {
   RefinementHistory 
 } from '@/types'
 import { useLocalStorage } from './useLocalStorage'
-import { useAPIKeyStorage } from './useSessionStorage'
+import { useSimpleApiKeyStorage } from './useSimpleApiKeyStorage'
 
 const DEFAULT_SPEC_STATE: SpecState = {
   phase: 'requirements',
@@ -110,7 +110,7 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
   } = options
 
   // API key management
-  const { value: apiKey, hasValidKey } = useAPIKeyStorage()
+  const { value: apiKey, hasValidKey } = useSimpleApiKeyStorage()
 
   // Persistent state management
   const {

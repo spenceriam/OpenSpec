@@ -23,7 +23,7 @@ import {
   Star
 } from 'lucide-react'
 import { OpenRouterModel } from '@/types'
-import { useAPIKeyStorage } from '../hooks/useSessionStorage'
+import { useSimpleApiKeyStorage } from '../hooks/useSimpleApiKeyStorage'
 import { OpenRouterClient } from '@/lib/openrouter/client'
 import { filterModels, searchModels, categorizeModels, formatPrice } from '@/lib/openrouter/model-utils'
 
@@ -50,7 +50,7 @@ export function ModelSelector({
   filterByCapability = 'all',
   className = ''
 }: ModelSelectorProps) {
-  const { value: apiKey } = useAPIKeyStorage()
+  const { value: apiKey } = useSimpleApiKeyStorage()
   const [models, setModels] = useState<OpenRouterModel[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
