@@ -30,7 +30,6 @@ export default function Home() {
   const [hasCheckedSession, setHasCheckedSession] = useState(false)
   const [apiKeyStatus, setApiKeyStatus] = useState<'loading' | 'success' | 'error' | null>(null)
   const [modelLoadStatus, setModelLoadStatus] = useState<'loading' | 'success' | 'error' | null>(null)
-  const [forceUpdate, setForceUpdate] = useState(0)
   const [isRegenerating, setIsRegenerating] = useState(false)
   const [lastGenerationTime, setLastGenerationTime] = useState<number>(0)
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
@@ -105,8 +104,6 @@ export default function Home() {
   useEffect(() => {
     if (hasApiKey && apiKeyStatus !== 'success' && !justDidReset) {
       setApiKeyStatus('success')
-      // Trigger update to ensure UI reflects API key validation
-      setForceUpdate(prev => prev + 1)
     }
   }, [hasApiKey, apiKeyStatus, justDidReset])
 
@@ -116,8 +113,6 @@ export default function Home() {
       setApiKeyStatus('success')
       setCurrentStep(2)
       setJustDidReset(false) // Allow normal progression after API key entry
-      // Force update to ensure UI synchronization after validation
-      setForceUpdate(prev => prev + 1)
     } else {
       setApiKeyStatus('error')
       setCurrentStep(1) // Stay on step 1 if validation fails
@@ -141,7 +136,6 @@ export default function Home() {
     setLastGenerationTime(0)
     setShowRegenerateConfirm(false)
     setContentCollapsed(true)
-    setForceUpdate(0)
     setHasCheckedSession(true) // Prevent session restore dialog
     setJustDidReset(true) // Prevent auto-advancement
     
@@ -430,7 +424,6 @@ export default function Home() {
             <div className={currentStep === 1 ? 'block' : 'hidden'}>
               <ComponentErrorBoundary name="ApiKeyInput">
                 <ApiKeyInput
-                  key={`api-key-${forceUpdate}-${hasApiKey}`}
                   onApiKeyValidated={handleApiKeyValidated}
                   onLoadingChange={(loading) => setApiKeyStatus(loading ? 'loading' : null)}
                   autoTest={true}
