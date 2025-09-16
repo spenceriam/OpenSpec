@@ -56,11 +56,11 @@ export default function Header({ className = '' }: HeaderProps) {
           {/* OpenSpec Logo - Left aligned */}
           <Link href="/" className="flex items-center -m-1.5 p-1.5">
             <Image
-              src="/openspec-logo.svg"
+              src="/OpenSpec_logo.png"
               alt="OpenSpec"
-              width={120}
-              height={32}
-              className="h-8 w-auto"
+              width={100}
+              height={28}
+              className="h-7 w-auto"
               priority
             />
           </Link>
