@@ -440,10 +440,16 @@ export function usePromptStorage() {
     }
   }, [])
 
+  // NEW: Clear for new project (same as clearPrompt, but explicit naming)
+  const clearPromptForNewProject = useCallback(() => {
+    clearPrompt()
+  }, [clearPrompt])
+
   return {
     prompt: storedPrompt,
     setPrompt,
-    clearPrompt
+    clearPrompt,
+    clearPromptForNewProject
   }
 }
 
@@ -484,9 +490,15 @@ export function useContextFilesStorage() {
     }
   }, [])
 
+  // NEW: Clear for new project (same as clearFiles, but explicit naming)
+  const clearFilesForNewProject = useCallback(() => {
+    clearFiles()
+  }, [clearFiles])
+
   return {
     contextFiles: storedFiles,
     setFiles,
-    clearFiles
+    clearFiles,
+    clearFilesForNewProject
   }
 }

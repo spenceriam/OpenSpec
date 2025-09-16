@@ -87,6 +87,7 @@ export interface UseSpecWorkflowReturn {
   
   // Utility actions
   reset: () => void
+  resetProjectOnly: () => void
   clearError: () => void
   exportData: () => any
   importData: (data: any) => boolean
@@ -1155,6 +1156,29 @@ Please update the ${state.phase} document based on this feedback while maintaini
     setTimeout(() => forceSync(), 100)
   }, [setState, forceSync, state])
 
+  // NEW: Selective reset - preserves API key and model settings
+  const resetProjectOnly = useCallback(() => {
+    console.log('[ResetProjectOnly] Clearing project data while preserving authentication and model settings')
+    
+    // Step 1: Reset workflow state to default (but don't touch API keys/models)
+    setState(DEFAULT_SPEC_STATE)
+    setRefinementHistory([])
+    
+    // Step 2: Clear only project-specific localStorage data
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('openspec-workflow-state')
+      // Note: We deliberately DON'T clear sessionStorage items like:
+      // - openspec-api-key
+      // - openspec-api-key-tested  
+      // - openspec-selected-model
+    }
+    
+    // Step 3: Force sync after delay
+    setTimeout(() => forceSync(), 100)
+    
+    console.log('[ResetProjectOnly] Project reset complete - API key and model selection preserved')
+  }, [setState, forceSync])
+
   const clearError = useCallback(() => {
     setState(prev => ({ ...prev, error: null }))
   }, [setState])
@@ -1343,6 +1367,7 @@ Please update the ${state.phase} document based on this feedback while maintaini
     
     // Utility actions
     reset,
+    resetProjectOnly,
     clearError,
     exportData,
     importData,

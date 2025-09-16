@@ -195,7 +195,8 @@ Follow conventional commit format:
 
 ## Project Status & Updates
 
-### Current Status: STREAMLINED WORKFLOW WITH PERFORMANCE TRACKING - Full Production Ready Application
+### Current Status: ENHANCED USER EXPERIENCE WITH SELECTIVE CLEARING - Full Production Ready Application
+- ✅ **NEW: SELECTIVE PROJECT CLEARING**: 'Start New Project' preserves API key and model selection while clearing project data (Issue #10)
 - ✅ **STREAMLINED WORKFLOW AUTOMATION**: Automatic next-phase generation after approval (33% fewer user clicks)
 - ✅ **COMPLETE WORKFLOW IMPLEMENTATION**: Full spec generation workflow (Requirements → Design → Tasks) with professional export
 - ✅ **ENHANCED PERFORMANCE TRACKING**: Fixed empty performance summary with robust data validation and migration
@@ -232,7 +233,16 @@ Follow conventional commit format:
 - ✅ **SERVER-SIDE TOKEN CLAMPING IMPLEMENTED**: Added comprehensive server-side safeguards against token overflow
 
 ### Recent Changes
-- **2025-01-15 (Latest - STREAMLINED WORKFLOW & PERFORMANCE FIXES)**: **WORKFLOW OPTIMIZATION & DEBUGGING ENHANCEMENTS** - Major UX improvements and performance tracking fixes:
+- **2025-01-16 (Latest - SELECTIVE PROJECT CLEARING)**: **ENHANCED USER EXPERIENCE** - Implemented selective clearing functionality to address user workflow friction:
+  - **SELECTIVE PROJECT CLEARING**: 'Start New Project' now preserves API key and model selection while clearing only project-specific data
+  - **IMPROVED WORKFLOW EFFICIENCY**: Users can start multiple projects in a session without re-entering credentials
+  - **SMART NAVIGATION**: Direct navigation to prompt screen (Step 3) when starting new project with preserved settings
+  - **USER FEEDBACK**: Clear notification that settings are preserved while project data is cleared
+  - **DUAL RESET OPTIONS**: Maintains both 'Reset & Start Fresh' (full clear) and 'Start New Project' (selective clear)
+  - **TECHNICAL IMPLEMENTATION**: Added `resetProjectOnly()` method to workflow hook and selective clearing to session storage
+  - **GITHUB ISSUE**: Resolves Issue #10 - Bug/Feature: 'Start a new Project' should preserve API key and model selection
+  - **RESULT**: 🎯 **REDUCED USER FRICTION** - No more re-entering API keys and model selection for new projects
+- **2025-01-15 (Earlier - STREAMLINED WORKFLOW & PERFORMANCE FIXES)**: **WORKFLOW OPTIMIZATION & DEBUGGING ENHANCEMENTS** - Major UX improvements and performance tracking fixes:
   - **STREAMLINED WORKFLOW**: Implemented automatic next-phase generation after approval - saves 2 manual clicks (33% fewer interactions)
   - **WORKFLOW AUTOMATION**: Generate → Approve (auto-generates Design) → Approve (auto-generates Tasks) → Approve → Complete
   - **FIXED GENERATE BUTTON**: Now shows green checkmark when workflow complete for clear visual feedback
