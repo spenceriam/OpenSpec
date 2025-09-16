@@ -196,22 +196,31 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
       
       // Ensure timing structure exists
       if (!migratedData.timing) {
+        console.log('[DataMigration] Creating missing timing structure')
         migratedData.timing = {
           requirements: { startTime: 0, endTime: 0, elapsed: 0 },
           design: { startTime: 0, endTime: 0, elapsed: 0 },
           tasks: { startTime: 0, endTime: 0, elapsed: 0 }
         }
       } else {
-        // Fill in missing timing entries
+        // Fill in missing timing entries and validate structure
         ['requirements', 'design', 'tasks'].forEach(phase => {
-          if (!migratedData.timing[phase]) {
+          if (!migratedData.timing[phase] || typeof migratedData.timing[phase] !== 'object') {
+            console.log(`[DataMigration] Fixing timing entry for ${phase}`)
             migratedData.timing[phase] = { startTime: 0, endTime: 0, elapsed: 0 }
+          } else {
+            // Ensure all required timing properties exist with proper types
+            const timing = migratedData.timing[phase]
+            if (typeof timing.startTime !== 'number') timing.startTime = 0
+            if (typeof timing.endTime !== 'number') timing.endTime = 0
+            if (typeof timing.elapsed !== 'number') timing.elapsed = 0
           }
         })
       }
       
       // Ensure apiResponses structure exists
       if (!migratedData.apiResponses) {
+        console.log('[DataMigration] Creating missing apiResponses structure')
         migratedData.apiResponses = {
           requirements: null,
           design: null,
@@ -221,6 +230,7 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
         // Fill in missing apiResponse entries
         ['requirements', 'design', 'tasks'].forEach(phase => {
           if (!(phase in migratedData.apiResponses)) {
+            console.log(`[DataMigration] Adding missing apiResponse for ${phase}`)
             migratedData.apiResponses[phase] = null
           }
         })
@@ -228,6 +238,12 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
       
       console.log('[DataMigration] Validated and migrated data:', {
         hasBasicFields,
+        phase: migratedData.phase,
+        hasContent: {
+          requirements: !!migratedData.requirements,
+          design: !!migratedData.design,
+          tasks: !!migratedData.tasks
+        },
         timing: migratedData.timing,
         apiResponses: migratedData.apiResponses
       })
@@ -365,23 +381,71 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
         throw new Error(errorData.error?.message || 'Generation failed')
       }
 
-      const { content } = await response.json()
+      const { content, usage, model } = await response.json()
+      const endTime = Date.now()
+      const elapsed = endTime - startTime
+
+      // Calculate cost if usage data is available
+      let costInfo = undefined
+      if (usage && selectedModel?.pricing) {
+        const promptCost = (usage.prompt_tokens / 1000) * parseFloat(selectedModel.pricing.prompt)
+        const completionCost = (usage.completion_tokens / 1000) * parseFloat(selectedModel.pricing.completion)
+        costInfo = {
+          prompt: promptCost,
+          completion: completionCost,
+          total: promptCost + completionCost
+        }
+      }
 
       setState(prev => ({
         ...prev,
         [state.phase]: content,
         isGenerating: false,
-        error: null
+        error: null,
+        timing: {
+          ...prev.timing,
+          [state.phase]: {
+            startTime,
+            endTime,
+            elapsed
+          }
+        },
+        apiResponses: {
+          ...prev.apiResponses,
+          [state.phase]: {
+            model: model || selectedModel?.id || 'unknown',
+            tokens: usage ? {
+              prompt: usage.prompt_tokens || 0,
+              completion: usage.completion_tokens || 0,
+              total: usage.total_tokens || 0
+            } : { prompt: 0, completion: 0, total: 0 },
+            cost: costInfo,
+            duration: elapsed,
+            timestamp: endTime
+          }
+        }
       }))
 
+      console.log(`[GenerateCurrentPhase] Completed ${state.phase}: ${elapsed}ms, tokens: ${usage?.total_tokens || 0}`)
       onGenerationComplete?.(state.phase, content)
 
     } catch (error) {
       const err = error instanceof Error ? error : new Error('Unknown error')
+      const endTime = Date.now()
+      const elapsed = endTime - startTime
+      
       setState(prev => ({
         ...prev,
         isGenerating: false,
-        error: err.message
+        error: err.message,
+        timing: {
+          ...prev.timing,
+          [state.phase]: {
+            startTime,
+            endTime,
+            elapsed
+          }
+        }
       }))
       onError?.(err, state.phase)
     }
@@ -403,6 +467,9 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
       return
     }
 
+    // Track the actual start time for this generation
+    const generationStartTime = Date.now()
+    
     // SMART PROMPT CHANGE DETECTION: Auto-reset if prompt significantly changed
     const hasExistingContent = state.requirements || state.design || state.tasks
     if (hasExistingContent && state.phase === 'requirements') {
@@ -415,7 +482,6 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
       
       if (promptChanged) {
         // Auto-reset due to significant prompt change
-        const startTime = Date.now()
         setState(prev => ({
           ...DEFAULT_SPEC_STATE,
           phase: 'requirements', // Start fresh at requirements phase
@@ -427,7 +493,7 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
           timing: {
             ...DEFAULT_SPEC_STATE.timing,
             [state.phase]: {
-              startTime,
+              startTime: generationStartTime,
               endTime: 0,
               elapsed: 0
             }
@@ -436,7 +502,6 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
         setRefinementHistory([])
         // Continue with generation using the clean state
       } else {
-        const startTime = Date.now()
         setState(prev => ({ 
           ...prev, 
           isGenerating: true, 
@@ -444,7 +509,7 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
           timing: {
             ...prev.timing,
             [state.phase]: {
-              startTime,
+              startTime: generationStartTime,
               endTime: 0,
               elapsed: 0
             }
@@ -452,7 +517,6 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
         }))
       }
     } else {
-      const startTime = Date.now()
       setState(prev => ({ 
         ...prev, 
         isGenerating: true, 
@@ -460,7 +524,7 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
         timing: {
           ...prev.timing,
           [state.phase]: {
-            startTime,
+            startTime: generationStartTime,
             endTime: 0,
             elapsed: 0
           }
@@ -623,7 +687,15 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
       
       const { content, usage, model } = responseData
       const endTime = Date.now()
-      const elapsed = endTime - (state.timing[state.phase]?.startTime || endTime)
+      // Calculate elapsed time using the startTime we captured at the beginning
+      const elapsed = endTime - generationStartTime
+      
+      console.log(`[GenerateWithData] Phase ${state.phase} completed:`, {
+        startTime: generationStartTime,
+        endTime,
+        elapsed,
+        tokens: usage?.total_tokens || 0
+      })
 
       // Calculate cost if usage data is available
       let costInfo = undefined
@@ -649,7 +721,7 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
             // Only update timing for non-complete phases
             ...(state.phase !== 'complete' && {
               [state.phase]: {
-                startTime: prev.timing[state.phase as keyof typeof prev.timing]?.startTime || endTime - elapsed,
+                startTime: generationStartTime,
                 endTime,
                 elapsed
               }
@@ -702,11 +774,22 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
       }
       
       const err = new Error(errorMessage)
+      const endTime = Date.now()
+      const elapsed = endTime - generationStartTime
+      
       setState(prev => ({
         ...prev,
         isGenerating: false,
         error: err.message,
-        [state.phase]: ''
+        [state.phase]: '',
+        timing: {
+          ...prev.timing,
+          [state.phase]: {
+            startTime: generationStartTime,
+            endTime,
+            elapsed
+          }
+        }
       }))
       onError?.(err, state.phase)
     }
