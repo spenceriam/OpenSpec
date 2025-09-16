@@ -3,7 +3,7 @@
 
 export const VERSION = {
   major: 0,
-  minor: 1,
+  minor: 5,
   patch: 0,
   // Pre-release identifiers: alpha, beta, rc, or null for stable
   prerelease: 'beta',

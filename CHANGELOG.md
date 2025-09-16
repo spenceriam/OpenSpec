@@ -18,10 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Footer layout to accommodate version information in bottom left
 
-## [0.1.0-beta] - 2025-01-16
+## [0.5.0-beta] - 2025-01-16
 
 ### Added
-- Initial OpenSpec application release
+- Comprehensive OpenSpec application with major workflow improvements
 - Complete AI-powered specification workflow (Requirements → Design → Tasks)
 - OpenRouter API integration with multiple model support
 - Professional ZIP export functionality
@@ -30,6 +30,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ApprovalButton component with instant feedback
 - Smooth animations and transitions
 - Auto-scroll to completion page
+- Version tracking system with footer display
+- CHANGELOG.md for proper release management
+
+### Fixed
+- **CRITICAL**: Eliminated 500ms setTimeout causing UI flickering in workflow buttons
+- **CRITICAL**: Fixed "Generating Task0" display bugs with robust button text generation
+- **CRITICAL**: Prevented currentStep state resets during workflow phase transitions
+- **CRITICAL**: Restored missing workflow completion page with animations
+- Atomic state transitions preventing button state flashing
+- Race conditions in approveAndProceed function
+- Button hover states and loading indicators
+- Workflow phase synchronization issues
 
 ### Features
 - **Three-Phase Workflow**: Requirements generation, technical design, implementation tasks
