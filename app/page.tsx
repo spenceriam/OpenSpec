@@ -39,6 +39,7 @@ export default function Home() {
   const [contentCollapsed, setContentCollapsed] = useState(true) // Default to collapsed/preview mode
   const [justDidReset, setJustDidReset] = useState(false) // Track if we just did a reset
   const [expandedSpecs, setExpandedSpecs] = useState<{[key: string]: boolean}>({}) // Track expanded specifications
+  const [showNewProjectNotification, setShowNewProjectNotification] = useState(false) // Track new project started
 
   const hasApiKey = Boolean(apiKey && hasValidKey)
   const hasModel = Boolean(selectedModel)
@@ -220,6 +221,52 @@ export default function Home() {
     setTimeout(() => window.location.reload(), 200)
   }
 
+  // NEW: Selective clearing - preserves API key and model selection
+  const handleStartNewProject = () => {
+    console.log('[StartNewProject] Starting new project while preserving user settings')
+    
+    // Step 1: Reset UI state but preserve authentication status
+    setCurrentStep(3) // Go directly to Prompt screen (skip API key + model steps)
+    // Keep apiKeyStatus and modelLoadStatus as 'success' since they're still valid
+    setIsRegenerating(false)
+    setLastGenerationTime(0)
+    setShowRegenerateConfirm(false)
+    setContentCollapsed(true)
+    setHasCheckedSession(true) // Prevent session restore dialog
+    setJustDidReset(false) // Allow normal progression since we're keeping settings
+    setExpandedSpecs({}) // Reset expanded specifications
+    
+    // Step 2: Reset workflow state only (preserves API key and model in session)
+    workflow.resetProjectOnly() // Use new selective reset method
+    
+    // Step 3: Clear only project-specific data (NOT API key or model)
+    clearPrompt() // Clear prompt text
+    clearContextFiles() // Clear uploaded files
+    // Note: We deliberately DON'T call clearAPIKey() or clearModel()
+    
+    // Step 4: Set flag and show notification
+    setShowNewProjectNotification(true)
+    
+    // Hide notification after 3 seconds
+    setTimeout(() => {
+      setShowNewProjectNotification(false)
+    }, 3000)
+    
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem('openspec-new-project-started', 'true')
+        // Remove the flag after a short delay to let components process it
+        setTimeout(() => {
+          sessionStorage.removeItem('openspec-new-project-started')
+        }, 1000)
+      } catch (error) {
+        console.error('Session storage error:', error)
+      }
+    }
+    
+    console.log('[StartNewProject] New project started - API key and model preserved')
+  }
+
   const handleContinue = () => {
     setShowContinueDialog(false)
     setHasCheckedSession(true) // Mark as checked so dialog won't show again
@@ -344,6 +391,16 @@ export default function Home() {
         cy={1} 
         cr={0.8}
       />
+      
+      {/* New Project Notification */}
+      {showNewProjectNotification && (
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50">
+          <div className="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-in slide-in-from-top-2 duration-300">
+            <CheckCircle className="h-5 w-5" />
+            <span className="font-medium">New project started! Your API key and model selection have been preserved.</span>
+          </div>
+        </div>
+      )}
       
       {/* Main Content */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex-1 relative z-10">
@@ -1210,7 +1267,7 @@ export default function Home() {
                         
                         <Button 
                           variant="outline"
-                          onClick={handleResetAndStartFresh}
+                          onClick={handleStartNewProject}
                           className="min-w-[150px]"
                         >
                           Start New Project
