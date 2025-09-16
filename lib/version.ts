@@ -4,7 +4,7 @@
 export const VERSION = {
   major: 0,
   minor: 5,
-  patch: 2,
+  patch: 3,
   // Pre-release identifiers: alpha, beta, rc, or null for stable
   prerelease: 'beta',
   // Build metadata (optional)
