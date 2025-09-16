@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1-beta] - 2025-01-16
+
+### Fixed
+- **CRITICAL**: Workflow phase regression preventing progression from Requirements to Design
+- currentStep interference causing UI to jump back to Step 1 after approval
+- Added debugging logs for workflow phase transitions
+- Stabilized workflow progression throughout all phases
+
+## [0.5.0-beta] - 2025-01-16
+
 ### Added
 - Version display in footer with git commit info on hover
 - Comprehensive version utility system for future release management
