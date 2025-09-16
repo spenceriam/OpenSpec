@@ -1,15 +1,28 @@
 // OpenSpec Version Information
-// This file should be updated with each release
+// Version is automatically imported from package.json to ensure synchronization
 
-export const VERSION = {
-  major: 0,
-  minor: 5,
-  patch: 3,
-  // Pre-release identifiers: alpha, beta, rc, or null for stable
-  prerelease: 'beta',
-  // Build metadata (optional)
-  build: null,
-} as const
+import packageJson from '../package.json'
+
+// Parse version from package.json (e.g., "0.5.4-beta" -> {major: 0, minor: 5, patch: 4, prerelease: 'beta'})
+const parseVersion = (versionString: string) => {
+  const versionRegex = /^(\d+)\.(\d+)\.(\d+)(?:-(\w+))?(?:\+(\w+))?$/
+  const match = versionString.match(versionRegex)
+  
+  if (!match) {
+    throw new Error(`Invalid version format: ${versionString}`)
+  }
+  
+  return {
+    major: parseInt(match[1], 10),
+    minor: parseInt(match[2], 10),
+    patch: parseInt(match[3], 10),
+    prerelease: match[4] || null,
+    build: match[5] || null,
+  }
+}
+
+// Automatically sync version from package.json
+export const VERSION = parseVersion(packageJson.version) as const
 
 export const VERSION_STRING = (() => {
   const base = `${VERSION.major}.${VERSION.minor}.${VERSION.patch}`
