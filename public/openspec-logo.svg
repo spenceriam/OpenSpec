@@ -1,0 +1,28 @@
+<svg width="1000" height="600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4A90E2"/>
+      <stop offset="50%" style="stop-color:#5BA3F5"/>
+      <stop offset="100%" style="stop-color:#3A7BD5"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1000" height="600" fill="white"/>
+  
+  <!-- Main Text: OpenSpec -->
+  <text x="500" y="320" 
+        font-family="Arial, Helvetica, sans-serif" 
+        font-size="160" 
+        font-weight="bold" 
+        font-style="italic"
+        text-anchor="middle" 
+        fill="url(#textGradient)">
+    OpenSpec
+  </text>
+  
+  <!-- Lightning bolt accent -->
+  <path d="M 170 380 L 220 280 L 190 280 L 230 200 L 180 300 L 210 300 Z" 
+        fill="url(#textGradient)" 
+        opacity="0.8"/>
+</svg>
