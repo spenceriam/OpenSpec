@@ -95,11 +95,15 @@ export default function Home() {
     }
     
     // Set initial step based on what's already completed
-    // But don't change currentStep if workflow is in complete phase or actively generating
+    // But don't change currentStep if workflow is actively running (requirements phase or beyond)
     if (workflow.currentPhase === 'complete') {
       // Always show step 4 when workflow is complete
       setCurrentStep(4)
+    } else if (workflow.currentPhase !== 'requirements' || workflow.state.requirements) {
+      // If we're past requirements phase or have generated requirements, keep at step 4
+      setCurrentStep(4)
     } else if (!workflow.isGenerating) {
+      // Only set initial steps if we haven't started the workflow yet
       if (hasApiKey && selectedModel && hasPromptData) {
         setCurrentStep(3)
         setApiKeyStatus('success')

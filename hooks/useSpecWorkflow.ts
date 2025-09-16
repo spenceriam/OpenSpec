@@ -860,6 +860,8 @@ Please update the ${state.phase} document based on this feedback while maintaini
     const startTime = Date.now()
     
     // Immediately approve current phase, proceed to next, and set generating state
+    console.log(`[ApproveAndProceed] Transitioning from ${state.phase} to ${nextPhase}`)
+    
     setState(prev => ({
       ...prev,
       approvals: {
@@ -952,6 +954,8 @@ Please update the ${state.phase} document based on this feedback while maintaini
         }
       }
       
+      console.log(`[ApproveAndProceed] Generation completed for ${nextPhase}, content length: ${content?.length || 0}`)
+      
       setState(prev => ({
         ...prev,
         [nextPhase]: content,
@@ -1001,6 +1005,8 @@ Please update the ${state.phase} document based on this feedback while maintaini
       }
       
       const err = new Error(errorMessage)
+      console.error(`[ApproveAndProceed] Error in ${nextPhase}:`, err.message)
+      
       setState(prev => ({
         ...prev,
         isGenerating: false,
