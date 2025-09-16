@@ -119,7 +119,28 @@ export default function Home() {
     }
     
     setHasCheckedSession(true) // Mark that we've checked the session
-  }, [hasApiKey, selectedModel, prompt, contextFiles, hasCheckedSession, justDidReset, workflow.currentPhase, workflow.isGenerating])
+  }, [hasApiKey, selectedModel, prompt, contextFiles, hasCheckedSession, justDidReset])
+  
+  // CRITICAL: Prevent currentStep resets during active workflow generation
+  useEffect(() => {
+    // Once we have generated requirements, NEVER allow currentStep to go below 4
+    if (workflow.state.requirements && workflow.state.requirements.trim().length > 0) {
+      console.log('[StepLock] Locking currentStep at 4 - requirements exist')
+      if (currentStep < 4) {
+        setCurrentStep(4)
+      }
+    }
+    // If workflow is generating, lock at step 4
+    if (workflow.isGenerating && currentStep !== 4) {
+      console.log('[StepLock] Locking currentStep at 4 - workflow is generating')
+      setCurrentStep(4)
+    }
+    // If workflow phase is beyond requirements, lock at step 4
+    if (workflow.currentPhase !== 'requirements' && currentStep !== 4) {
+      console.log(`[StepLock] Locking currentStep at 4 - phase is ${workflow.currentPhase}`)
+      setCurrentStep(4)
+    }
+  }, [workflow.state.requirements, workflow.isGenerating, workflow.currentPhase, currentStep])
 
   // Ensure API key status is set correctly when key is valid (but not after reset)
   useEffect(() => {

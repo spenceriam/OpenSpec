@@ -175,6 +175,16 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
     defaultValue: DEFAULT_SPEC_STATE,
     autoSave,
     validateData: (data): data is SpecState => {
+      // CRITICAL: Prevent phase regression in localStorage
+      if (data && typeof data === 'object' && 'phase' in data) {
+        // If we have requirements content but phase is 'requirements', this might be corrupted
+        if (data.requirements && typeof data.requirements === 'string' && data.requirements.trim().length > 0) {
+          if (data.phase === 'requirements') {
+            console.warn('[Storage] Correcting phase regression - requirements exist but phase is requirements')
+            // Don't auto-correct here, let the validation pass and we'll fix it in useEffect
+          }
+        }
+      }
       if (!data || typeof data !== 'object') return false
       
       // Check for required basic fields
@@ -1010,7 +1020,9 @@ Please update the ${state.phase} document based on this feedback while maintaini
       setState(prev => ({
         ...prev,
         isGenerating: false,
-        error: err.message
+        error: err.message,
+        // CRITICAL: Do NOT reset phase on error - stay on current phase
+        // phase: prev.phase (keep current phase, don't revert)
       }))
       onError?.(err, nextPhase)
     }
@@ -1187,6 +1199,29 @@ Please update the ${state.phase} document based on this feedback while maintaini
       previousPhaseRef.current = state.phase
     }
   }, [state.phase, onPhaseChange])
+
+  // CRITICAL: Auto-correct corrupted workflow state
+  useEffect(() => {
+    // If we have requirements content but are still on requirements phase, force progress
+    if (state.requirements && state.requirements.trim().length > 0 && state.phase === 'requirements' && state.approvals.requirements) {
+      console.warn('[StateCorruption] Auto-correcting: requirements exist and approved but still on requirements phase')
+      setState(prev => ({ ...prev, phase: 'design' }))
+    }
+    // If we have design content but are on requirements phase, force progress  
+    if (state.design && state.design.trim().length > 0 && state.phase === 'requirements') {
+      console.warn('[StateCorruption] Auto-correcting: design exists but on requirements phase')
+      setState(prev => ({ ...prev, phase: 'design', approvals: { ...prev.approvals, requirements: true } }))
+    }
+    // If we have tasks content but are on requirements/design phase, force progress
+    if (state.tasks && state.tasks.trim().length > 0 && (state.phase === 'requirements' || state.phase === 'design')) {
+      console.warn('[StateCorruption] Auto-correcting: tasks exist but not on tasks phase')
+      setState(prev => ({ 
+        ...prev, 
+        phase: 'tasks',
+        approvals: { ...prev.approvals, requirements: true, design: true }
+      }))
+    }
+  }, [state.requirements, state.design, state.tasks, state.phase, state.approvals, setState])
 
   return {
     // State
