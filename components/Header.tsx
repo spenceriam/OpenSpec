@@ -58,9 +58,9 @@ export default function Header({ className = '' }: HeaderProps) {
             <Image
               src="/OpenSpec_logo.png"
               alt="OpenSpec"
-              width={100}
-              height={28}
-              className="h-7 w-auto"
+              width={110}
+              height={31}
+              className="h-8 w-auto"
               priority
             />
           </Link>
