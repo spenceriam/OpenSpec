@@ -1,9 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { Badge } from '@/components/ui/badge'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
-import { Zap, RotateCcw } from 'lucide-react'
+import { RotateCcw } from 'lucide-react'
 import { useModelStorage, usePromptStorage, useContextFilesStorage } from '@/hooks/useSessionStorage'
 import { useSimpleApiKeyStorage } from '@/hooks/useSimpleApiKeyStorage'
 
@@ -53,22 +53,16 @@ export default function Header({ className = '' }: HeaderProps) {
     <header className={`border-b bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 border-border ${className}`}>
       <nav className="mx-auto max-w-7xl px-6 lg:px-8" aria-label="Global">
         <div className="flex h-16 items-center justify-between">
-          {/* Logo and Brand - Left aligned */}
-          <Link href="/" className="flex items-center space-x-2 -m-1.5 p-1.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <Zap className="h-4 w-4 text-primary-foreground" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xl font-bold">OpenSpec</span>
-              <div className="flex items-center space-x-1">
-                <Badge variant="secondary" className="text-xs px-1.5 py-0">
-                  Beta
-                </Badge>
-                <Badge variant="outline" className="text-xs px-1.5 py-0">
-                  Open Source
-                </Badge>
-              </div>
-            </div>
+          {/* OpenSpec Logo - Left aligned */}
+          <Link href="/" className="flex items-center -m-1.5 p-1.5">
+            <Image
+              src="/openspec-logo.svg"
+              alt="OpenSpec"
+              width={160}
+              height={48}
+              className="h-10 w-auto"
+              priority
+            />
           </Link>
 
           {/* Reset Button - Right aligned */}
