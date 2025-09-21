@@ -389,13 +389,20 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
       // Calculate cost if usage data is available
       let costInfo = undefined
       if (usage && selectedModel?.pricing) {
-        const promptCost = (usage.prompt_tokens / 1000) * parseFloat(selectedModel.pricing.prompt)
-        const completionCost = (usage.completion_tokens / 1000) * parseFloat(selectedModel.pricing.completion)
+        const promptPrice = parseFloat(selectedModel.pricing.prompt)
+        const completionPrice = parseFloat(selectedModel.pricing.completion)
+        
+        const promptCost = usage.prompt_tokens * promptPrice
+        const completionCost = usage.completion_tokens * completionPrice
+        const totalCost = promptCost + completionCost
+        
         costInfo = {
           prompt: promptCost,
           completion: completionCost,
-          total: promptCost + completionCost
+          total: totalCost
         }
+        
+        console.log(`💰 [${state.phase}] Cost: $${totalCost.toFixed(4)} (${usage.prompt_tokens}p + ${usage.completion_tokens}c tokens)`);
       }
 
       setState(prev => ({
@@ -701,13 +708,20 @@ export function useSpecWorkflow(options: UseSpecWorkflowOptions = {}): UseSpecWo
       // Calculate cost if usage data is available
       let costInfo = undefined
       if (usage && selectedModel?.pricing) {
-        const promptCost = (usage.prompt_tokens / 1000) * parseFloat(selectedModel.pricing.prompt)
-        const completionCost = (usage.completion_tokens / 1000) * parseFloat(selectedModel.pricing.completion)
+        const promptPrice = parseFloat(selectedModel.pricing.prompt)
+        const completionPrice = parseFloat(selectedModel.pricing.completion)
+        
+        const promptCost = usage.prompt_tokens * promptPrice
+        const completionCost = usage.completion_tokens * completionPrice
+        const totalCost = promptCost + completionCost
+        
         costInfo = {
           prompt: promptCost,
           completion: completionCost,
-          total: promptCost + completionCost
+          total: totalCost
         }
+        
+        console.log(`💰 [${state.phase}] Cost: $${totalCost.toFixed(4)} (${usage.prompt_tokens}p + ${usage.completion_tokens}c tokens)`);
       }
 
       // Update state appropriately for each phase
@@ -1039,13 +1053,20 @@ Please update the ${state.phase} document based on this feedback while maintaini
       // Calculate cost using the same logic as generateWithData
       let costInfo = undefined
       if (usage && selectedModel?.pricing) {
-        const promptCost = (usage.prompt_tokens / 1000) * parseFloat(selectedModel.pricing.prompt)
-        const completionCost = (usage.completion_tokens / 1000) * parseFloat(selectedModel.pricing.completion)
+        const promptPrice = parseFloat(selectedModel.pricing.prompt)
+        const completionPrice = parseFloat(selectedModel.pricing.completion)
+        
+        const promptCost = usage.prompt_tokens * promptPrice
+        const completionCost = usage.completion_tokens * completionPrice
+        const totalCost = promptCost + completionCost
+        
         costInfo = {
           prompt: promptCost,
           completion: completionCost,
-          total: promptCost + completionCost
+          total: totalCost
         }
+        
+        console.log(`💰 [${nextPhase}] Cost: $${totalCost.toFixed(4)} (${usage.prompt_tokens}p + ${usage.completion_tokens}c tokens)`);
       }
       
       console.log(`[ApproveAndProceed] Generation completed for ${nextPhase}, content length: ${content?.length || 0}`)
