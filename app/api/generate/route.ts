@@ -255,7 +255,7 @@ export async function POST(request: NextRequest) {
 
     // Generate completion with clamped prompts
     
-    const completion = await client.generateCompletion(
+    const completionResult = await client.generateCompletion(
       model,
       clamped.system,
       clamped.user,
@@ -265,11 +265,12 @@ export async function POST(request: NextRequest) {
     
     // OpenRouter API call successful
 
-    // Return successful response
+    // Return successful response with usage information
     return NextResponse.json(
       {
-        content: completion,
-        model: model,
+        content: completionResult.content,
+        usage: completionResult.usage,
+        model: completionResult.model || model,
         timestamp: new Date().toISOString()
       },
       {
