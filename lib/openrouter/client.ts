@@ -90,14 +90,14 @@ export class OpenRouterClient {
     userPrompt: string, 
     contextFiles?: any[], 
     options?: any
-  ): Promise<string>
+  ): Promise<{ content: string; usage?: any; model: string }>
   async generateCompletion(
     requestOrModel: OpenRouterCompletionRequest | string,
     systemPrompt?: string,
     userPrompt?: string,
     contextFiles?: any[],
     options?: any
-  ): Promise<OpenRouterCompletionResponse | string> {
+  ): Promise<OpenRouterCompletionResponse | { content: string; usage?: any; model: string }> {
     // Handle the object-based call (original signature)
     if (typeof requestOrModel === 'object') {
       const request = requestOrModel as OpenRouterCompletionRequest
@@ -142,9 +142,13 @@ export class OpenRouterClient {
       body: JSON.stringify(request),
     })
 
-    // Return just the content string for the parameter-based call
+    // Return content and usage information for the parameter-based call
     if (response.choices && response.choices[0] && response.choices[0].message) {
-      return response.choices[0].message.content
+      return {
+        content: response.choices[0].message.content,
+        usage: response.usage,
+        model: response.model || model
+      }
     }
     
     throw new Error('Invalid response format from OpenRouter API')
